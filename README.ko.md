@@ -6,6 +6,8 @@
 
 **언어:** [English](README.md) | [한국어](README.ko.md)
 
+📦 **패키지:** [npm](https://www.npmjs.com/package/@cp949/web-logger)
+
 프로덕션 환경에 최적화된 웹 로깅 라이브러리입니다. 개발 환경에서는 풍부한 디버깅 정보를 제공하고, 프로덕션에서는 자동으로 민감한 정보를 필터링하며 성능에 최적화됩니다.
 
 ## ✨ 주요 특징
@@ -35,6 +37,8 @@
 - 다중 설정 소스: 환경변수, 전역변수
 
 ## 📦 설치
+
+[npm](https://www.npmjs.com/package/@cp949/web-logger)에서 설치:
 
 ```bash
 npm install @cp949/web-logger
@@ -123,42 +127,13 @@ consoleCompatible.log('log message');
 // const console = convertToConsoleLogger(webLogger);
 ```
 
-## 🚀 빠른 시작
-
-### 기본 사용법
-
-```typescript
-import { logDebug, logInfo, logWarn, logError } from '@cp949/web-logger';
-
-// 간단한 로깅
-logDebug('디버깅 정보');
-logInfo('일반 정보');
-logWarn('경고 메시지');
-logError('에러 발생!');
-
-// 여러 파라미터 지원 (console API와 동일)
-logDebug('User data:', userData, requestInfo);
-logError('Failed to fetch:', error, { endpoint, status });
-```
-
-### 인스턴스 생성
+### 6. 고급 기능
 
 ```typescript
 import { WebLogger } from '@cp949/web-logger';
 
-// 커스텀 prefix로 로거 생성
 const logger = new WebLogger('[MyApp]');
 
-// 다양한 로깅 메서드
-logger.debug('디버깅 정보');
-logger.info('사용자 로그인', { userId: 123 });
-logger.warn('메모리 사용량 높음', { usage: '85%' });
-logger.error('API 호출 실패', error);
-```
-
-### 고급 기능
-
-```typescript
 // 그룹화된 로깅
 logger.group('사용자 정보', userData);
 logger.debug('상세 정보...');
@@ -176,6 +151,10 @@ logger.setLogLevel('debug'); // 모든 로그 출력
 // 로그 레벨 확인
 console.log(logger.currentLogLevel); // 'debug'
 console.log(logger.isEnabled); // true
+
+// 여러 파라미터 지원 (console API와 동일)
+logger.debug('User data:', userData, requestInfo);
+logger.error('Failed to fetch:', error, { endpoint, status });
 ```
 
 ## 🔧 설정
@@ -418,12 +397,6 @@ MIT License - 자유롭게 사용하고 수정할 수 있습니다.
 3. Commit your changes (`git commit -m 'Add amazing feature'`)
 4. Push to the branch (`git push origin feature/amazing-feature`)
 5. Open a Pull Request
-
-## 📞 지원
-
-- 📧 Email: support@jjfive.net
-- 🐛 Issues: [GitHub Issues](https://github.com/cp949/web-logger/issues)
-- 📚 Docs: [Documentation](https://docs.jjfive.net/cp949/web-logger)
 
 ## 🏷️ 버전 히스토리
 

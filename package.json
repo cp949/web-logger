@@ -31,7 +31,7 @@
     "format:check": "prettier --check \"src/**/*.{ts,tsx}\"",
     "bundle-size": "node -e \"const fs=require('fs');const esm=fs.statSync('dist/index.js').size;const cjs=fs.statSync('dist/index.cjs').size;console.log('ESM:',(esm/1024).toFixed(2),'KB');console.log('CJS:',(cjs/1024).toFixed(2),'KB');console.log('Total:',((esm+cjs)/1024).toFixed(2),'KB')\"",
     "prepublishOnly": "pnpm run build && pnpm run typecheck",
-    "publish": "pnpm publish --access public",
+    "deploy": "pnpm publish",
     "clean": "rm -rf dist"
   },
   "devDependencies": {

@@ -6,6 +6,8 @@
 
 **Languages:** [English](README.md) | [한국어](README.ko.md)
 
+📦 **Package:** [npm](https://www.npmjs.com/package/@cp949/web-logger)
+
 A production-optimized web logging library. Provides rich debugging information in development environments and automatically filters sensitive information while optimizing performance in production.
 
 ## ✨ Key Features
@@ -35,6 +37,8 @@ A production-optimized web logging library. Provides rich debugging information 
 - Multiple configuration sources: Environment variables, global variables
 
 ## 📦 Installation
+
+Install from [npm](https://www.npmjs.com/package/@cp949/web-logger):
 
 ```bash
 npm install @cp949/web-logger
@@ -123,42 +127,13 @@ consoleCompatible.log('log message');
 // const console = convertToConsoleLogger(webLogger);
 ```
 
-## 🚀 Quick Start
-
-### Basic Usage
-
-```typescript
-import { logDebug, logInfo, logWarn, logError } from '@cp949/web-logger';
-
-// Simple logging
-logDebug('Debug information');
-logInfo('General information');
-logWarn('Warning message');
-logError('Error occurred!');
-
-// Multiple parameters supported (same as console API)
-logDebug('User data:', userData, requestInfo);
-logError('Failed to fetch:', error, { endpoint, status });
-```
-
-### Creating an Instance
+### 6. Advanced Features
 
 ```typescript
 import { WebLogger } from '@cp949/web-logger';
 
-// Create logger with custom prefix
 const logger = new WebLogger('[MyApp]');
 
-// Various logging methods
-logger.debug('Debug information');
-logger.info('User logged in', { userId: 123 });
-logger.warn('High memory usage', { usage: '85%' });
-logger.error('API call failed', error);
-```
-
-### Advanced Features
-
-```typescript
 // Grouped logging
 logger.group('User Information', userData);
 logger.debug('Detailed information...');
@@ -176,6 +151,10 @@ logger.setLogLevel('debug'); // All logs output
 // Check log level
 console.log(logger.currentLogLevel); // 'debug'
 console.log(logger.isEnabled); // true
+
+// Multiple parameters supported (same as console API)
+logger.debug('User data:', userData, requestInfo);
+logger.error('Failed to fetch:', error, { endpoint, status });
 ```
 
 ## 🔧 Configuration
@@ -418,12 +397,6 @@ Bug reports and feature suggestions are welcome!
 3. Commit your changes (`git commit -m 'Add amazing feature'`)
 4. Push to the branch (`git push origin feature/amazing-feature`)
 5. Open a Pull Request
-
-## 📞 Support
-
-- 📧 Email: support@jjfive.net
-- 🐛 Issues: [GitHub Issues](https://github.com/cp949/web-logger/issues)
-- 📚 Docs: [Documentation](https://docs.jjfive.net/cp949/web-logger)
 
 ## 🏷️ Version History
 
