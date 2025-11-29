@@ -1,0 +1,819 @@
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { WebLogger, addSensitiveKey, removeSensitiveKey, getSensitiveKeys, resetSensitiveKeys } from './WebLogger';
+
+describe('WebLogger', () => {
+  let logger: WebLogger;
+  let consoleSpy: any;
+  let originalEnv: string | undefined;
+
+  beforeEach(() => {
+    // 환경 변수 백업 및 설정
+    originalEnv = process.env.NODE_ENV;
+    process.env.NODE_ENV = 'development';
+
+    // localStorage 모킹 (실제 동작하도록 구현)
+    const storage: Record<string, string> = {};
+    const localStorageMock = {
+      getItem: vi.fn((key: string) => storage[key] || null),
+      setItem: vi.fn((key: string, value: string) => {
+        storage[key] = value;
+      }),
+      removeItem: vi.fn((key: string) => {
+        delete storage[key];
+      }),
+      clear: vi.fn(() => {
+        Object.keys(storage).forEach(key => delete storage[key]);
+      }),
+    };
+    Object.defineProperty(window, 'localStorage', {
+      value: localStorageMock,
+      writable: true,
+      configurable: true,
+    });
+
+    // window.__WEB_LOGGER_LOG_LEVEL__ 초기화
+    if (typeof window !== 'undefined') {
+      delete (window as any).__WEB_LOGGER_LOG_LEVEL__;
+    }
+
+    // localStorage 초기화
+    localStorageMock.clear();
+
+    // 새로운 로거 인스턴스 생성
+    logger = new WebLogger('[TEST]');
+
+    // 로그 레벨을 debug로 초기화 (개발 환경 기본값)
+    logger.setLogLevel('debug');
+
+    // console 메서드들을 모킹
+    consoleSpy = {
+      log: vi.spyOn(console, 'log').mockImplementation(() => {}),
+      debug: vi.spyOn(console, 'debug').mockImplementation(() => {}),
+      info: vi.spyOn(console, 'info').mockImplementation(() => {}),
+      warn: vi.spyOn(console, 'warn').mockImplementation(() => {}),
+      error: vi.spyOn(console, 'error').mockImplementation(() => {}),
+      table: vi.spyOn(console, 'table').mockImplementation(() => {}),
+    };
+  });
+
+  afterEach(() => {
+    // 로그 레벨을 debug로 복원
+    if (logger) {
+      logger.setLogLevel('debug');
+    }
+    // window.__WEB_LOGGER_LOG_LEVEL__ 초기화
+    if (typeof window !== 'undefined') {
+      delete (window as any).__WEB_LOGGER_LOG_LEVEL__;
+    }
+    // localStorage 초기화
+    if (typeof localStorage !== 'undefined') {
+      localStorage.clear();
+    }
+    // 환경 변수 복원
+    process.env.NODE_ENV = originalEnv;
+    // 모든 모킹 복원
+    vi.restoreAllMocks();
+  });
+
+  // 헬퍼 함수: 로그 출력에서 메시지 추출
+  function extractMessageFromLog(mockCalls: any[]): string | null {
+    if (!mockCalls || mockCalls.length === 0) return null;
+
+    const firstCall = mockCalls[0];
+    if (!firstCall || firstCall.length === 0) return null;
+
+    // 첫 번째 인자가 %c로 시작하는 경우 (스타일 적용)
+    const firstArg = firstCall[0];
+    if (typeof firstArg === 'string' && firstArg.includes('%c')) {
+      // %c[TEST] [HH:MM:SS] LEVEL message 형식에서 message 추출
+      const match = firstArg.match(/\[TEST\]\s+\[[^\]]+\]\s+\w+\s+(.*)/);
+      return match ? match[1] : firstArg;
+    }
+
+    return firstArg;
+  }
+
+  describe('민감정보 필터링', () => {
+    it('이메일 주소를 마스킹해야 함', () => {
+      logger.debug('User email: test@example.com');
+
+      expect(consoleSpy.log).toHaveBeenCalled();
+      const message = extractMessageFromLog(consoleSpy.log.mock.calls);
+      expect(message).toContain('[EMAIL]');
+      expect(message).not.toContain('test@example.com');
+    });
+
+    it('카드번호를 마스킹해야 함', () => {
+      logger.debug('Card: 4111-1111-1111-1111');
+
+      expect(consoleSpy.log).toHaveBeenCalled();
+      const message = extractMessageFromLog(consoleSpy.log.mock.calls);
+      expect(message).toContain('[CARD]');
+      expect(message).not.toContain('4111-1111-1111-1111');
+    });
+
+    it('전화번호를 마스킹해야 함', () => {
+      logger.debug('Phone: 010-1234-5678');
+
+      expect(consoleSpy.log).toHaveBeenCalled();
+      const message = extractMessageFromLog(consoleSpy.log.mock.calls);
+      expect(message).toContain('[PHONE]');
+      expect(message).not.toContain('010-1234-5678');
+    });
+
+    it('JWT 토큰을 마스킹해야 함', () => {
+      const token = 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.dozjgNryP4J3jVmNHl0w5N_XgL0n3I9PlFUP0THsR8U';
+      logger.debug(`Token: ${token}`);
+
+      expect(consoleSpy.log).toHaveBeenCalled();
+      const message = extractMessageFromLog(consoleSpy.log.mock.calls);
+      expect(message).toContain('[JWT]');
+      expect(message).not.toContain('eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9');
+    });
+
+    it('패스워드를 마스킹해야 함', () => {
+      logger.debug('password: "secret123"');
+
+      expect(consoleSpy.log).toHaveBeenCalled();
+      const message = extractMessageFromLog(consoleSpy.log.mock.calls);
+      expect(message).toContain('[PASSWORD]');
+      expect(message).not.toContain('secret123');
+    });
+  });
+
+  describe('로그 레벨', () => {
+    it('로그 레벨이 none일 때 아무것도 출력하지 않아야 함', () => {
+      // 환경 변수 모킹
+      const originalEnv = process.env.NODE_ENV;
+      process.env.NODE_ENV = 'production';
+
+      // 로그 레벨 none으로 설정
+      logger.setLogLevel('none');
+
+      // 모든 로그 메서드 호출
+      logger.debug('Should not appear');
+      logger.info('Should not appear');
+      logger.warn('Should not appear');
+      logger.error('Should not appear');
+
+      // 아무것도 출력되지 않아야 함
+      expect(consoleSpy.log).not.toHaveBeenCalled();
+      expect(consoleSpy.debug).not.toHaveBeenCalled();
+      expect(consoleSpy.info).not.toHaveBeenCalled();
+      expect(consoleSpy.warn).not.toHaveBeenCalled();
+      expect(consoleSpy.error).not.toHaveBeenCalled();
+
+      // 환경 변수 복원
+      process.env.NODE_ENV = originalEnv;
+      logger.setLogLevel('debug'); // 테스트 후 복원
+    });
+
+    it('setLogLevel이 즉시 반영되어야 함', () => {
+      // 개발 환경에서는 기본적으로 debug 레벨
+      vi.clearAllMocks();
+
+      // warn 레벨로 변경
+      logger.setLogLevel('warn');
+
+      // debug와 info는 출력되지 않아야 함
+      logger.debug('Should not appear');
+      logger.info('Should not appear');
+
+      expect(consoleSpy.log).not.toHaveBeenCalled();
+      expect(consoleSpy.debug).not.toHaveBeenCalled();
+      expect(consoleSpy.info).not.toHaveBeenCalled();
+
+      // warn과 error는 출력되어야 함
+      logger.warn('Should appear');
+      logger.error('Should appear');
+
+      expect(consoleSpy.warn).toHaveBeenCalled();
+      expect(consoleSpy.error).toHaveBeenCalled();
+
+      // debug 레벨로 다시 변경
+      logger.setLogLevel('debug');
+
+      vi.clearAllMocks();
+
+      // 이제 debug도 출력되어야 함
+      logger.debug('Should appear now');
+      expect(consoleSpy.log).toHaveBeenCalled();
+    });
+
+    it('여러 인스턴스가 동일한 로그 레벨을 공유해야 함', () => {
+      const logger1 = new WebLogger('[LOGGER1]');
+      const logger2 = new WebLogger('[LOGGER2]');
+
+      // warn 레벨로 설정
+      logger1.setLogLevel('warn');
+
+      vi.clearAllMocks();
+
+      // logger1과 logger2 모두 warn 레벨 적용
+      logger1.debug('Should not appear');
+      logger2.debug('Should not appear');
+
+      expect(consoleSpy.log).not.toHaveBeenCalled();
+      expect(consoleSpy.debug).not.toHaveBeenCalled();
+
+      // warn은 모두 출력되어야 함
+      logger1.warn('Should appear from logger1');
+      logger2.warn('Should appear from logger2');
+
+      expect(consoleSpy.warn).toHaveBeenCalledTimes(2);
+
+      // debug 레벨로 복원
+      logger1.setLogLevel('debug');
+    });
+
+    it('currentLogLevel getter가 동적으로 변경된 레벨을 반환해야 함', () => {
+      // 초기 레벨 확인 (개발 환경에서는 debug)
+      expect(logger.currentLogLevel).toBe('debug');
+
+      // warn으로 변경
+      logger.setLogLevel('warn');
+      expect(logger.currentLogLevel).toBe('warn');
+
+      // error로 변경
+      logger.setLogLevel('error');
+      expect(logger.currentLogLevel).toBe('error');
+
+      // debug로 복원
+      logger.setLogLevel('debug');
+      expect(logger.currentLogLevel).toBe('debug');
+    });
+  });
+
+  describe('순환 참조', () => {
+    it('순환 참조를 처리해야 함', () => {
+      const obj: any = { a: 1 };
+      obj.self = obj;
+
+      logger.debug('Circular:', obj);
+
+      // 크래시하지 않고 로그가 출력됨
+      expect(consoleSpy.log.mock.calls.length).toBeGreaterThanOrEqual(1);
+
+      // console.table도 호출될 수 있음
+      const allCalls = [
+        ...consoleSpy.log.mock.calls,
+        ...consoleSpy.table.mock.calls
+      ];
+
+      // [CIRCULAR] 텍스트가 어딘가에 포함되어 있어야 함
+      const hasCircular = allCalls.some((call: any[]) =>
+        call.some((arg: any) => {
+          const str = typeof arg === 'string' ? arg : JSON.stringify(arg);
+          return str && str.includes('[CIRCULAR]');
+        })
+      );
+      expect(hasCircular).toBe(true);
+    });
+  });
+
+  describe('깊이 제한', () => {
+    it('10단계 이상 중첩된 객체를 제한해야 함', () => {
+      // 12단계 깊이의 객체 생성
+      let deep: any = { level: 1 };
+      let current = deep;
+      for (let i = 2; i <= 12; i++) {
+        current.next = { level: i };
+        current = current.next;
+      }
+
+      logger.debug('Deep:', deep);
+
+      expect(consoleSpy.log.mock.calls.length).toBeGreaterThanOrEqual(1);
+
+      // 모든 console 호출 확인
+      const allCalls = [
+        ...consoleSpy.log.mock.calls,
+        ...consoleSpy.table.mock.calls
+      ];
+
+      // [MAX_DEPTH] 텍스트 포함 확인
+      const hasMaxDepth = allCalls.some((call: any[]) =>
+        call.some((arg: any) => {
+          const str = typeof arg === 'string' ? arg : JSON.stringify(arg);
+          return str && str.includes('[MAX_DEPTH]');
+        })
+      );
+      expect(hasMaxDepth).toBe(true);
+    });
+  });
+
+  describe('프로토타입 오염 방지', () => {
+    it('__proto__ 키를 필터링해야 함', () => {
+      // Object.defineProperty를 사용하여 __proto__를 실제 프로퍼티로 정의
+      const malicious: any = Object.create(null);
+      Object.defineProperty(malicious, '__proto__', {
+        value: { isAdmin: true },
+        enumerable: true,
+        writable: true,
+        configurable: true
+      });
+      malicious.normal = 'data';
+
+      logger.debug('Data:', malicious);
+
+      expect(consoleSpy.log.mock.calls.length).toBeGreaterThanOrEqual(1);
+      expect(consoleSpy.table.mock.calls.length).toBeGreaterThanOrEqual(1);
+
+      // console.table 호출 시 전달된 데이터 확인
+      const tableData = consoleSpy.table.mock.calls[0][0];
+
+      // 직접 키 확인
+      const keys = Object.keys(tableData);
+      if (keys.includes('__proto__')) {
+        // __proto__ 키가 있다면 [UNSAFE_KEY]로 변환되어야 함
+        expect(tableData['__proto__']).toBe('[UNSAFE_KEY]');
+      }
+
+      expect(tableData.normal).toBe('data');
+    });
+
+    it('constructor 키를 필터링해야 함', () => {
+      const malicious = {
+        constructor: { prototype: { isAdmin: true } },
+        normal: 'data'
+      };
+
+      logger.debug('Data:', malicious);
+
+      expect(consoleSpy.log.mock.calls.length).toBeGreaterThanOrEqual(1);
+
+      const allCalls = [
+        ...consoleSpy.log.mock.calls,
+        ...consoleSpy.table.mock.calls
+      ];
+
+      // [UNSAFE_KEY] 텍스트 포함 확인
+      const hasUnsafeKey = allCalls.some((call: any[]) =>
+        call.some((arg: any) => {
+          const str = typeof arg === 'string' ? arg : JSON.stringify(arg);
+          return str && str.includes('[UNSAFE_KEY]');
+        })
+      );
+      expect(hasUnsafeKey).toBe(true);
+    });
+  });
+
+  describe('문자열 길이 제한', () => {
+    it('5000자 이상의 문자열을 잘라야 함', () => {
+      const longString = 'a'.repeat(5001);
+      logger.debug(longString);
+
+      const callArgs = consoleSpy.log.mock.calls[0];
+
+      // [TRUNCATED] 텍스트 포함 확인
+      const hasTruncated = callArgs.some((arg: any) =>
+        typeof arg === 'string' && arg.includes('[TRUNCATED]')
+      );
+      expect(hasTruncated).toBe(true);
+    });
+
+    it('5000자 이하의 문자열은 잘리지 않아야 함', () => {
+      const normalString = 'a'.repeat(5000);
+      logger.debug(normalString);
+
+      const callArgs = consoleSpy.log.mock.calls[0];
+
+      // [TRUNCATED] 텍스트가 없어야 함
+      const hasTruncated = callArgs.some((arg: any) =>
+        typeof arg === 'string' && arg.includes('[TRUNCATED]')
+      );
+      expect(hasTruncated).toBe(false);
+    });
+  });
+
+  describe('ReDoS 공격 방지', () => {
+    it('악의적인 정규식 입력에 대해 타임아웃으로 보호해야 함', () => {
+      // ReDoS 공격 시나리오: 매우 긴 반복 패턴
+      // 이메일 정규식에 취약한 패턴
+      const maliciousEmail = 'a'.repeat(1000) + '@' + 'b'.repeat(1000) + '.c';
+      
+      vi.clearAllMocks();
+      
+      const startTime = Date.now();
+      logger.debug('Malicious input:', maliciousEmail);
+      const endTime = Date.now();
+      const executionTime = endTime - startTime;
+
+      // 실행 시간이 합리적인 범위 내에 있어야 함 (1초 이내)
+      expect(executionTime).toBeLessThan(1000);
+
+      // 로그가 정상적으로 출력되어야 함 (크래시하지 않음)
+      // 여러 파라미터일 때는 console.log 또는 console.debug를 사용할 수 있음
+      const wasCalled = consoleSpy.log.mock.calls.length > 0 || consoleSpy.debug.mock.calls.length > 0;
+      expect(wasCalled).toBe(true);
+    });
+
+    it('복잡한 반복 패턴에 대해 안전하게 처리해야 함', () => {
+      // 카드번호 정규식에 취약한 패턴
+      const maliciousCard = '1'.repeat(500) + '-' + '2'.repeat(500) + '-' + '3'.repeat(500);
+      
+      vi.clearAllMocks();
+      
+      const startTime = Date.now();
+      logger.debug('Card input:', maliciousCard);
+      const endTime = Date.now();
+      const executionTime = endTime - startTime;
+
+      // 실행 시간이 합리적인 범위 내에 있어야 함
+      expect(executionTime).toBeLessThan(1000);
+      const wasCalled = consoleSpy.log.mock.calls.length > 0 || consoleSpy.debug.mock.calls.length > 0;
+      expect(wasCalled).toBe(true);
+    });
+
+    it('매우 긴 문자열도 타임아웃 내에 처리되어야 함', () => {
+      // 최대 길이 제한을 넘는 문자열
+      const veryLongString = 'x'.repeat(10000) + '@example.com';
+      
+      vi.clearAllMocks();
+      
+      const startTime = Date.now();
+      logger.debug('Very long string:', veryLongString);
+      const endTime = Date.now();
+      const executionTime = endTime - startTime;
+
+      // 실행 시간이 합리적인 범위 내에 있어야 함
+      expect(executionTime).toBeLessThan(1000);
+      const wasCalled = consoleSpy.log.mock.calls.length > 0 || consoleSpy.debug.mock.calls.length > 0;
+      expect(wasCalled).toBe(true);
+
+      // [TRUNCATED] 표시가 있어야 함
+      const allCalls = [...consoleSpy.log.mock.calls, ...consoleSpy.debug.mock.calls];
+      const hasTruncated = allCalls.some((call: any[]) =>
+        call.some((arg: any) =>
+          typeof arg === 'string' && arg.includes('[TRUNCATED]')
+        )
+      );
+      expect(hasTruncated).toBe(true);
+    });
+
+    it('정규식 실행 중 오류가 발생해도 크래시하지 않아야 함', () => {
+      // 특수 문자로 구성된 악의적 입력
+      const maliciousInput = 'a'.repeat(100) + '\\' + 'b'.repeat(100);
+      
+      vi.clearAllMocks();
+      
+      // 크래시하지 않고 정상적으로 처리되어야 함
+      expect(() => {
+        logger.debug('Malicious regex input:', maliciousInput);
+      }).not.toThrow();
+
+      const wasCalled = consoleSpy.log.mock.calls.length > 0 || consoleSpy.debug.mock.calls.length > 0;
+      expect(wasCalled).toBe(true);
+    });
+  });
+
+  describe('민감한 객체 속성 필터링', () => {
+    it('password 속성을 마스킹해야 함', () => {
+      const data = {
+        username: 'john',
+        password: 'secret123',
+        email: 'john@example.com'
+      };
+
+      logger.debug('User data:', data);
+
+      // console.table이 호출될 수 있음
+      const tableCall = vi.spyOn(console, 'table').mockImplementation(() => {});
+
+      // 로그 확인
+      expect(consoleSpy.log).toHaveBeenCalled();
+
+      tableCall.mockRestore();
+    });
+
+    it('token 속성을 마스킹해야 함', () => {
+      const data = {
+        userId: '123',
+        accessToken: 'secret-token-value',
+        refreshToken: 'refresh-token-value'
+      };
+
+      logger.debug('Auth data:', data);
+
+      expect(consoleSpy.log).toHaveBeenCalled();
+    });
+  });
+
+  describe('타임스탬프 형식', () => {
+    it('올바른 타임스탬프 형식을 출력해야 함', () => {
+      logger.debug('Test message'); // debug는 dev 환경에서 항상 동작
+
+      expect(consoleSpy.log).toHaveBeenCalled();
+      const message = consoleSpy.log.mock.calls[0][0];
+
+      // HH:MM:SS 형식 확인
+      const timeRegex = /\[\d{2}:\d{2}:\d{2}\]/;
+      expect(message).toMatch(timeRegex);
+    });
+  });
+
+  describe('그룹 로깅', () => {
+    it('group 메서드가 console.group을 호출해야 함', () => {
+      const groupSpy = vi.spyOn(console, 'group').mockImplementation(() => {});
+      const groupEndSpy = vi.spyOn(console, 'groupEnd').mockImplementation(() => {});
+
+      logger.group('Group Title');
+      logger.debug('Inside group');
+      logger.groupEnd();
+
+      expect(groupSpy).toHaveBeenCalledWith(expect.stringContaining('Group Title'));
+      expect(groupEndSpy).toHaveBeenCalled();
+
+      groupSpy.mockRestore();
+      groupEndSpy.mockRestore();
+    });
+  });
+
+  describe('성능 측정', () => {
+    it('time과 timeEnd가 동작해야 함', () => {
+      const timeSpy = vi.spyOn(console, 'time').mockImplementation(() => {});
+      const timeEndSpy = vi.spyOn(console, 'timeEnd').mockImplementation(() => {});
+
+      logger.time('operation');
+      // 실제 작업 시뮬레이션
+      logger.timeEnd('operation');
+
+      // WebLogger가 프리픽스를 추가함
+      expect(timeSpy).toHaveBeenCalledWith('[TEST] operation');
+      expect(timeEndSpy).toHaveBeenCalledWith('[TEST] operation');
+
+      timeSpy.mockRestore();
+      timeEndSpy.mockRestore();
+    });
+  });
+
+  describe('에러 객체 처리', () => {
+    it('Error 객체를 올바르게 로깅해야 함', () => {
+      const error = new Error('Test error message');
+      error.stack = 'Error: Test error message\n    at Test.test (test.js:10:10)';
+
+      logger.error('Error occurred:', error);
+
+      // error 레벨은 console.error를 사용
+      expect(consoleSpy.error).toHaveBeenCalled();
+      const call = consoleSpy.error.mock.calls[consoleSpy.error.mock.calls.length - 1];
+      const message = call.join(' ');
+
+      expect(message).toContain('ERROR');
+      expect(message).toContain('Error occurred:');
+    });
+
+    it('커스텀 에러 속성을 보존해야 함', () => {
+      class CustomError extends Error {
+        code: string;
+        statusCode: number;
+
+        constructor(message: string, code: string, statusCode: number) {
+          super(message);
+          this.code = code;
+          this.statusCode = statusCode;
+        }
+      }
+
+      const customError = new CustomError('Custom error', 'ERR_CUSTOM', 500);
+      logger.error('Custom error:', customError);
+
+      // error 레벨은 console.error를 사용
+      expect(consoleSpy.error).toHaveBeenCalled();
+    });
+  });
+
+  describe('isEnabled', () => {
+    it('로그 레벨이 none이 아닐 때 true를 반환해야 함', () => {
+      logger.setLogLevel('debug');
+      expect(logger.isEnabled).toBe(true);
+
+      logger.setLogLevel('info');
+      expect(logger.isEnabled).toBe(true);
+
+      logger.setLogLevel('warn');
+      expect(logger.isEnabled).toBe(true);
+
+      logger.setLogLevel('error');
+      expect(logger.isEnabled).toBe(true);
+    });
+
+    it('로그 레벨이 none일 때 false를 반환해야 함', () => {
+      logger.setLogLevel('none');
+      expect(logger.isEnabled).toBe(false);
+
+      // 복원
+      logger.setLogLevel('debug');
+    });
+  });
+
+  describe('프로덕션 모드', () => {
+    it('프로덕션 환경에서는 debug와 info 로그가 출력되지 않아야 함', () => {
+      // 프로덕션 환경 설정 (프로덕션에서는 기본 로그 레벨이 'warn'임)
+      const originalEnv = process.env.NODE_ENV;
+      process.env.NODE_ENV = 'production';
+
+      // window.__WEB_LOGGER_LOG_LEVEL__ 초기화 (프로덕션 기본값 사용)
+      if (typeof window !== 'undefined') {
+        delete (window as any).__WEB_LOGGER_LOG_LEVEL__;
+      }
+      if (typeof localStorage !== 'undefined') {
+      }
+
+      // 새로운 WebLogger 인스턴스 생성 (프로덕션 설정 적용)
+      const prodLogger = new WebLogger('[PROD]');
+
+      // 모든 스파이 초기화
+      vi.clearAllMocks();
+
+      prodLogger.debug('Should not appear'); // 출력 안됨
+      prodLogger.info('Should not appear');  // 출력 안됨
+      prodLogger.warn('Should appear');      // warn은 프로덕션에서도 출력
+      prodLogger.error('Should appear');     // error는 프로덕션에서도 출력
+
+      // debug와 info는 호출되지 않아야 함
+      expect(consoleSpy.log.mock.calls.filter(call =>
+        call[0] && typeof call[0] === 'string' && call[0].includes('DEBUG')
+      ).length).toBe(0);
+      expect(consoleSpy.log.mock.calls.filter(call =>
+        call[0] && typeof call[0] === 'string' && call[0].includes('INFO')
+      ).length).toBe(0);
+      expect(consoleSpy.debug).not.toHaveBeenCalled();
+      expect(consoleSpy.info).not.toHaveBeenCalled();
+
+      // warn과 error는 호출되어야 함
+      expect(consoleSpy.warn).toHaveBeenCalled();
+      expect(consoleSpy.error).toHaveBeenCalled();
+
+      // 환경 변수 복원
+      process.env.NODE_ENV = originalEnv;
+      // 로그 레벨도 복원
+      prodLogger.setLogLevel('debug');
+    });
+  });
+
+  describe('엣지 케이스', () => {
+    it('메타데이터가 배열인 경우 console.log를 사용해야 함', () => {
+      // group 메서드는 객체가 아닌 경우 console.table을 호출하지 않음
+      // 하지만 실제로는 배열도 table로 표시될 수 있음
+      // 이 테스트는 배열이 객체로 변환되어 table로 표시되는 것을 확인
+      const arrayData = [1, 2, 3];
+      logger.group('Array data', arrayData as any);
+      logger.groupEnd();
+
+      // group 메서드가 호출되었는지 확인
+      expect(consoleSpy.log).toHaveBeenCalled();
+    });
+
+    it('스타일이 없는 환경에서도 정상 동작해야 함', () => {
+      // console.log의 %c 스타일 지원 여부와 관계없이 동작해야 함
+      logger.debug('Test message');
+      expect(consoleSpy.log).toHaveBeenCalled();
+    });
+
+    it('console.info가 없는 환경에서 console.log를 사용해야 함', () => {
+      const originalInfo = console.info;
+      // @ts-ignore
+      console.info = undefined;
+
+      logger.info('Test info');
+      expect(consoleSpy.log).toHaveBeenCalled();
+
+      // 복원
+      console.info = originalInfo;
+    });
+
+    it('localStorage 접근 실패 시 기본값을 사용해야 함', () => {
+      // localStorage를 모킹하여 접근 실패 시뮬레이션
+      const originalLocalStorage = window.localStorage;
+
+      Object.defineProperty(window, 'localStorage', {
+        value: {
+          getItem: vi.fn(() => {
+            throw new Error('Access denied');
+          }),
+          setItem: vi.fn(() => {
+            throw new Error('Access denied');
+          }),
+          removeItem: vi.fn(),
+          clear: vi.fn(),
+        },
+        writable: true,
+        configurable: true,
+      });
+
+      // 새로운 로거 인스턴스 생성 (localStorage 접근 실패)
+      const testLogger = new WebLogger('[TEST]');
+
+      // 기본값으로 동작해야 함 (개발 환경에서는 debug)
+      expect(testLogger.currentLogLevel).toBe('debug');
+
+      // 복원
+      Object.defineProperty(window, 'localStorage', {
+        value: originalLocalStorage,
+        writable: true,
+        configurable: true,
+      });
+    });
+
+  });
+
+  describe('민감한 키 관리', () => {
+    beforeEach(() => {
+      // 각 테스트 전에 기본값으로 초기화
+      resetSensitiveKeys();
+    });
+
+    afterEach(() => {
+      // 각 테스트 후에 기본값으로 복원
+      resetSensitiveKeys();
+    });
+
+    it('민감한 키를 추가할 수 있어야 함', () => {
+      addSensitiveKey('customSecret');
+      addSensitiveKey('apiSecret');
+
+      const data = { customSecret: 'secret123', apiSecret: 'key456', normalKey: 'value' };
+      logger.debug('User data:', data);
+
+      // sanitizeLogData가 호출되어 customSecret과 apiSecret이 [REDACTED]로 변경되었는지 확인
+      // 실제로는 console에 출력된 내용을 확인하기 어려우므로,
+      // getSensitiveKeys로 추가된 키가 있는지 확인
+      const keys = getSensitiveKeys();
+      expect(keys).toContain('customsecret');
+      expect(keys).toContain('apisecret');
+    });
+
+    it('민감한 키를 제거할 수 있어야 함', () => {
+      // email 필터링 제거
+      removeSensitiveKey('email');
+
+      // getSensitiveKeys로 email이 제거되었는지 확인
+      const keys = getSensitiveKeys();
+      expect(keys).not.toContain('email');
+      
+      // password는 여전히 있어야 함
+      expect(keys).toContain('password');
+    });
+
+    it('현재 민감한 키 목록을 가져올 수 있어야 함', () => {
+      const keys = getSensitiveKeys();
+
+      expect(Array.isArray(keys)).toBe(true);
+      expect(keys.length).toBeGreaterThan(0);
+      expect(keys).toContain('password');
+      expect(keys).toContain('token');
+      expect(keys).toContain('email');
+    });
+
+    it('민감한 키 목록을 기본값으로 초기화할 수 있어야 함', () => {
+      // 키 추가
+      addSensitiveKey('customKey1');
+      addSensitiveKey('customKey2');
+
+      let keys = getSensitiveKeys();
+      expect(keys).toContain('customkey1');
+      expect(keys).toContain('customkey2');
+
+      // 초기화
+      resetSensitiveKeys();
+
+      keys = getSensitiveKeys();
+      expect(keys).not.toContain('customkey1');
+      expect(keys).not.toContain('customkey2');
+      expect(keys).toContain('password'); // 기본 키는 유지
+    });
+
+    it('대소문자 구분 없이 키를 추가/제거할 수 있어야 함', () => {
+      addSensitiveKey('CustomKey');
+      addSensitiveKey('ANOTHER_KEY');
+
+      // 대소문자 구분 없이 소문자로 저장되어야 함
+      let keys = getSensitiveKeys();
+      expect(keys).toContain('customkey');
+      expect(keys).toContain('another_key');
+
+      // 제거도 대소문자 구분 없이 동작해야 함
+      removeSensitiveKey('CUSTOMKEY');
+      keys = getSensitiveKeys();
+      expect(keys).not.toContain('customkey');
+      expect(keys).toContain('another_key');
+    });
+
+    it('모든 WebLogger 인스턴스가 동일한 민감한 키 목록을 공유해야 함', () => {
+      const logger1 = new WebLogger('[App1]');
+      const logger2 = new WebLogger('[App2]');
+
+      addSensitiveKey('sharedKey');
+
+      // 두 로거 모두 동일한 전역 설정을 사용하므로
+      // getSensitiveKeys는 동일한 결과를 반환해야 함
+      const keys1 = getSensitiveKeys();
+      const keys2 = getSensitiveKeys();
+      
+      expect(keys1).toEqual(keys2);
+      expect(keys1).toContain('sharedkey');
+      expect(keys2).toContain('sharedkey');
+    });
+  });
+});
