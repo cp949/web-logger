@@ -9,8 +9,10 @@ import { isDevelopment } from './utils/environment';
  * - 브라우저 개발자 도구 최적화
  */
 
-// 성능 최적화를 위한 정규식 캐싱 (컴파일된 정규식 재사용)
-const SENSITIVE_PATTERNS = {
+// 민감 패턴 타입 및 기본값 (정규식 재사용)
+export type SensitivePatternMap = Record<string, RegExp>;
+
+const DEFAULT_SENSITIVE_PATTERNS: SensitivePatternMap = {
   email: /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b/gi,
   card: /\b\d{4}[\s\-\.\/]?\d{4}[\s\-\.\/]?\d{4}[\s\-\.\/]?\d{3,4}\b/g,
   phone: /(\+82|0)[\s\-\.]?\d{1,2}[\s\-\.]?\d{3,4}[\s\-\.]?\d{4}/g,
@@ -22,6 +24,24 @@ const SENSITIVE_PATTERNS = {
 
 // 프로토타입 오염 방지를 위한 안전하지 않은 키
 const UNSAFE_KEYS = ['__proto__', 'constructor', 'prototype'];
+
+// 성능 최적화: 객체 sanitize 결과 캐싱 (WeakMap 활용)
+let sanitizeCache = new WeakMap<object, unknown>();
+
+// 민감 키 변경 시 캐시 무효화
+const clearSanitizeCache = (): void => {
+  sanitizeCache = new WeakMap<object, unknown>();
+};
+
+const isMetadataCandidate = (value: unknown): value is LogMetadata => {
+  if (value === null || value === undefined) return false;
+  if (typeof value === 'object') {
+    if (value instanceof Date) return false;
+    if (ArrayBuffer.isView(value)) return false;
+    return true;
+  }
+  return false;
+};
 
 /**
  * 에러 타입 정의
@@ -108,9 +128,11 @@ const LOG_LEVEL_CONFIGS: Record<LogLevel, LogLevelConfig> = {
  * logger.info('User login', { userId: 123, email: 'user@example.com' });
  * ```
  */
-export interface LogMetadata {
-  [key: string]: unknown;
-}
+export type LogMetadata =
+  | Record<string, unknown>
+  | Map<unknown, unknown>
+  | Set<unknown>
+  | unknown[];
 
 /**
  * 로그 가능한 값 타입
@@ -118,6 +140,21 @@ export interface LogMetadata {
  * WebLogger가 처리할 수 있는 모든 데이터 타입을 포함합니다.
  */
 export type LogValue = string | number | boolean | null | undefined | Error | LogMetadata | LogValue[];
+
+/**
+ * WebLogger 구성 옵션
+ */
+export interface WebLoggerOptions<TMetadata extends LogMetadata = LogMetadata> {
+  prefix?: string;
+  sensitiveKeys?: string[];
+  sensitivePatterns?: SensitivePatternMap;
+  // 타입 추론용 메타데이터 힌트 (실제 값 사용 안 함)
+  _metadataType?: TMetadata;
+  /**
+   * 기본 패턴 제거 시 경고 표시 여부 (기본값: false)
+   */
+  suppressPatternWarnings?: boolean;
+}
 
 // Window 인터페이스 확장
 declare global {
@@ -144,8 +181,28 @@ class SensitiveKeysManager {
   private static instance: SensitiveKeysManager;
   private sensitiveKeys: Set<string>;
 
-  // 기본 민감한 키 목록
+  /**
+   * 기본 민감한 키 목록
+   *
+   * 객체 속성 키가 이 목록의 키워드와 일치하면 (대소문자 구분 없음),
+   * 값의 내용과 관계없이 전체 값이 `[REDACTED]`로 마스킹됩니다.
+   *
+   * 총 28개의 기본 키를 포함하며, 다음과 같이 분류됩니다:
+   * - 인증 관련 (10개): password, pwd, passwd, token, apiKey, api_key,
+   *   accessToken, refreshToken, authToken, authorization
+   * - 개인정보 관련 (6개): email, phone, phoneNumber, mobile,
+   *   ssn, socialSecurityNumber, residentNumber, resident_number
+   * - 결제 관련 (3개): creditCard, cardNumber, card_number
+   * - 보안 관련 (7개): secret, secretKey, privateKey, private_key,
+   *   sessionId, session_id, cookie, cookies
+   *
+   * 사용자는 `addSensitiveKey()` 또는 `removeSensitiveKey()`를 통해
+   * 동적으로 키 목록을 관리할 수 있습니다.
+   *
+   * @see SensitiveKeysManager.isSensitive()
+   */
   private readonly defaultKeys = [
+    // 인증 관련 (10개)
     'password',
     'pwd',
     'passwd',
@@ -156,17 +213,20 @@ class SensitiveKeysManager {
     'refreshToken',
     'authToken',
     'authorization',
+    // 개인정보 관련 (6개)
     'email',
     'phone',
     'phoneNumber',
     'mobile',
-    'creditCard',
-    'cardNumber',
-    'card_number',
     'ssn',
     'socialSecurityNumber',
     'residentNumber',
     'resident_number',
+    // 결제 관련 (3개)
+    'creditCard',
+    'cardNumber',
+    'card_number',
+    // 보안 관련 (7개)
     'secret',
     'secretKey',
     'privateKey',
@@ -190,27 +250,65 @@ class SensitiveKeysManager {
 
   /**
    * 민감한 키 추가
-   * @param key 추가할 키 (대소문자 구분 없음)
+   *
+   * 새로운 민감 키워드를 목록에 추가합니다. 키는 대소문자 구분 없이 저장되며,
+   * 추가 시 sanitize 캐시가 자동으로 초기화됩니다.
+   *
+   * @param key 추가할 키 (대소문자 구분 없음, 빈 문자열 제외)
+   *
+   * @example
+   * ```typescript
+   * addKey('customSecret');
+   * addKey('apiSecret');
+   * ```
    */
   addKey(key: string): void {
     if (typeof key === 'string' && key.length > 0) {
       this.sensitiveKeys.add(key.toLowerCase());
+      clearSanitizeCache();
     }
   }
 
   /**
    * 민감한 키 제거
-   * @param key 제거할 키 (대소문자 구분 없음)
+   *
+   * 목록에서 민감 키워드를 제거합니다. 키는 대소문자 구분 없이 매칭되며,
+   * 제거 시 sanitize 캐시가 자동으로 초기화됩니다.
+   *
+   * @param key 제거할 키 (대소문자 구분 없음, 빈 문자열 제외)
+   *
+   * @example
+   * ```typescript
+   * removeKey('email'); // email 필터링 비활성화
+   * ```
    */
   removeKey(key: string): void {
     if (typeof key === 'string' && key.length > 0) {
       this.sensitiveKeys.delete(key.toLowerCase());
+      clearSanitizeCache();
     }
   }
 
   /**
+   * 민감한 키 목록을 교체
+   *
+   * 기존 키 목록을 모두 제거하고 새로운 키 목록으로 교체합니다.
+   * 빈 값은 자동으로 필터링되며, 모든 키는 소문자로 변환되어 저장됩니다.
+   *
+   * @param keys 새 키 배열 (빈 값은 자동 제외)
+   */
+  setKeys(keys: string[]): void {
+    this.sensitiveKeys = new Set(keys.filter(Boolean).map((key) => key.toLowerCase()));
+    clearSanitizeCache();
+  }
+
+  /**
    * 현재 민감한 키 목록 가져오기
-   * @returns 민감한 키 배열 (정렬된 복사본)
+   *
+   * 현재 활성화된 모든 민감 키워드를 정렬된 배열로 반환합니다.
+   * 반환된 배열은 복사본이므로 원본 목록에 영향을 주지 않습니다.
+   *
+   * @returns 민감한 키 배열 (정렬된 복사본, 소문자)
    */
   getKeys(): string[] {
     return Array.from(this.sensitiveKeys).sort();
@@ -218,15 +316,33 @@ class SensitiveKeysManager {
 
   /**
    * 기본 키 목록으로 초기화
+   *
+   * 민감 키 목록을 기본 28개 키로 초기화합니다.
+   * 사용자가 추가/제거한 모든 키가 제거되고 기본값으로 복원됩니다.
+   * 초기화 시 sanitize 캐시가 자동으로 초기화됩니다.
    */
   reset(): void {
     this.sensitiveKeys = new Set(this.defaultKeys.map((key) => key.toLowerCase()));
+    clearSanitizeCache();
   }
 
   /**
    * 키가 민감한 키인지 확인
-   * @param key 확인할 키
-   * @returns 민감한 키인지 여부
+   *
+   * 키 이름이 민감 키워드 목록에 포함되어 있는지 확인합니다.
+   * 대소문자를 구분하지 않으며, 부분 일치도 허용합니다.
+   * 예: 'apiKey', 'ApiKey', 'myApiKey' 모두 민감 키로 인식
+   *
+   * @param key 확인할 키 (문자열)
+   * @returns 키가 민감 키워드를 포함하면 `true`, 그렇지 않으면 `false`
+   *
+   * @example
+   * ```typescript
+   * isSensitive('password'); // true
+   * isSensitive('apiKey'); // true
+   * isSensitive('myApiKey'); // true (부분 일치)
+   * isSensitive('username'); // false
+   * ```
    */
   isSensitive(key: string): boolean {
     if (typeof key !== 'string' || key.length === 0) {
@@ -239,6 +355,83 @@ class SensitiveKeysManager {
 
 // 싱글톤 인스턴스
 const sensitiveKeysManager = SensitiveKeysManager.getInstance();
+
+/**
+ * 전역 민감 패턴 관리자 (싱글톤)
+ */
+class SensitivePatternsManager {
+  private static instance: SensitivePatternsManager;
+  private patterns: SensitivePatternMap;
+  private suppressWarnings = false;
+
+  private constructor() {
+    this.patterns = { ...DEFAULT_SENSITIVE_PATTERNS };
+  }
+
+  static getInstance(): SensitivePatternsManager {
+    if (!SensitivePatternsManager.instance) {
+      SensitivePatternsManager.instance = new SensitivePatternsManager();
+    }
+    return SensitivePatternsManager.instance;
+  }
+
+  getPatterns(): SensitivePatternMap {
+    return this.patterns;
+  }
+
+  /**
+   * 민감 패턴 전체를 교체
+   */
+  setPatterns(patterns: SensitivePatternMap): void {
+    const normalized = this.normalizePatterns(patterns);
+    this.warnIfDefaultsMissing(normalized);
+    this.patterns = normalized;
+    clearSanitizeCache();
+  }
+
+  /**
+   * 민감 패턴 병합 (기존 + 추가/교체)
+   */
+  mergePatterns(patterns: SensitivePatternMap): void {
+    const normalized = this.normalizePatterns(patterns);
+    this.patterns = { ...this.patterns, ...normalized };
+    clearSanitizeCache();
+  }
+
+  reset(): void {
+    this.patterns = { ...DEFAULT_SENSITIVE_PATTERNS };
+    clearSanitizeCache();
+  }
+
+  private normalizePatterns(patterns: SensitivePatternMap): SensitivePatternMap {
+    const normalized: SensitivePatternMap = {};
+    for (const [key, pattern] of Object.entries(patterns)) {
+      if (pattern instanceof RegExp) {
+        normalized[key] = pattern;
+      }
+    }
+    return normalized;
+  }
+
+  private warnIfDefaultsMissing(nextPatterns: SensitivePatternMap): void {
+    const missing = Object.keys(DEFAULT_SENSITIVE_PATTERNS).filter(
+      (key) => !Object.prototype.hasOwnProperty.call(nextPatterns, key),
+    );
+
+    if (!this.suppressWarnings && missing.length > 0 && typeof console !== 'undefined' && console.warn) {
+      console.warn(
+        `[WebLogger] Default sensitive patterns removed: ${missing.join(
+          ', ',
+        )}. Ensure this is intentional.`,
+      );
+    }
+  }
+  setSuppressWarnings(value: boolean): void {
+    this.suppressWarnings = value;
+  }
+}
+
+const sensitivePatternsManager = SensitivePatternsManager.getInstance();
 
 /**
  * 전역 로그 레벨 상태 관리자 (싱글톤)
@@ -258,18 +451,46 @@ class LogLevelManager {
 
   /**
    * 현재 로그 레벨 가져오기 (런타임 제어)
-   * 프로덕션에서도 디버깅을 위해 로그 레벨을 동적으로 설정 가능
+   *
+   * 다음 우선순위로 로그 레벨을 결정합니다:
+   * 1. `globalThis.__WEB_LOGGER_LOG_LEVEL__` - 런타임 전역 상태 (최우선, SSR/CSR 모두 지원)
+   * 2. `window.__WEB_LOGGER_LOG_LEVEL__` - 브라우저 전역 변수 (런타임 제어, 디버깅용)
+   * 3. `__INITIAL_LOG_LEVEL__` - 빌드 타임 상수 (빌드 시 주입, Tree Shaking 최적화)
+   * 4. `process.env.WEB_LOGGER_LOG_LEVEL` - 환경 변수 (런타임 fallback)
+   * 5. `isDevelopment()` - 개발 모드 감지 시 'debug' 반환
+   * 6. 기본값: 'warn' - 프로덕션 환경 기본값 (error + warn만 출력)
+   *
+   * 프로덕션에서도 디버깅을 위해 로그 레벨을 동적으로 설정 가능합니다.
+   * 모든 WebLogger 인스턴스가 동일한 전역 로그 레벨을 공유합니다.
+   *
+   * @returns 현재 활성화된 로그 레벨
+   * @see setLogLevel()
+   * @see LogLevelManager
    */
   getCurrentLogLevel(): LogLevel {
-    // 1. 빌드 타임 상수 우선 (Tree Shaking 최적화)
-    if (typeof __INITIAL_LOG_LEVEL__ !== 'undefined' && __INITIAL_LOG_LEVEL__) {
-      const envLevel = __INITIAL_LOG_LEVEL__ as LogLevel;
-      if (isValidLogLevel(envLevel)) {
-        return envLevel;
+    // 1. 런타임 전역 상태(동적 제어 우선)
+    const globalLevel = globalThis.__WEB_LOGGER_LOG_LEVEL__;
+    if (isValidLogLevel(globalLevel)) {
+      return globalLevel;
+    }
+
+    // 2. 브라우저 전역 변수 (런타임 제어, 디버깅용)
+    if (typeof window !== 'undefined') {
+      const browserLevel = window.__WEB_LOGGER_LOG_LEVEL__;
+      if (isValidLogLevel(browserLevel)) {
+        return browserLevel;
       }
     }
 
-    // 2. 환경 변수 (런타임 제어, 빌드 타임 상수가 없는 경우 fallback)
+    // 3. 빌드 타임 시드 (기본값 제공용)
+    if (typeof __INITIAL_LOG_LEVEL__ !== 'undefined' && __INITIAL_LOG_LEVEL__) {
+      const initialLevel = __INITIAL_LOG_LEVEL__ as LogLevel;
+      if (isValidLogLevel(initialLevel)) {
+        return initialLevel;
+      }
+    }
+
+    // 4. 환경 변수 (런타임 제어, 빌드 타임 상수가 없는 경우 fallback)
     if (typeof process !== 'undefined' && process.env) {
       const envLevel = process.env['WEB_LOGGER_LOG_LEVEL'] as LogLevel;
       if (isValidLogLevel(envLevel)) {
@@ -277,26 +498,12 @@ class LogLevelManager {
       }
     }
 
-    // 3. globalThis (SSR/Node 전역)
-    const globalLevel = globalThis.__WEB_LOGGER_LOG_LEVEL__;
-    if (isValidLogLevel(globalLevel)) {
-      return globalLevel;
-    }
-
-    // 3. 브라우저 전역 변수 (런타임 제어, 디버깅용)
-    if (typeof window !== 'undefined') {
-      const globalLevel = window.__WEB_LOGGER_LOG_LEVEL__;
-      if (isValidLogLevel(globalLevel)) {
-        return globalLevel;
-      }
-    }
-
-    // 6. 개발 모드 감지 (기존 호환성)
+    // 5. 개발 모드 감지 (기존 호환성)
     if (isDevelopment()) {
       return 'debug'; // 개발: 모든 레벨
     }
 
-    // 7. 기본값: 프로덕션에서는 warn 이상 (error + warn)
+    // 6. 기본값: 프로덕션에서는 warn 이상 (error + warn)
     // 중요한 경고도 프로덕션에서 확인 가능하도록 허용
     return 'warn';
   }
@@ -343,17 +550,30 @@ const MAX_DEPTH = 10; // 순환 참조 방지를 위한 최대 깊이
 
 /**
  * 정규식 실행 시간 제한 (ReDoS 공격 방지)
- * @param text 처리할 문자열
+ *
+ * 모든 민감 정보 패턴을 순차적으로 적용하며, 총 실행 시간이 타임아웃을 초과하면
+ * 남은 패턴 처리를 중단합니다. 이를 통해 ReDoS(정규식 서비스 거부) 공격을 방지합니다.
+ *
+ * **보안 특징:**
+ * - 각 패턴마다 타임아웃 체크 수행
+ * - 타임아웃 초과 시 안전하게 종료 (원본 반환하지 않음)
+ * - 개별 패턴 오류 발생 시 해당 패턴만 스킵하고 계속 진행
+ *
+ * @param text 처리할 문자열 (최대 5,000자, 이 함수 호출 전에 제한됨)
  * @param timeoutMs 타임아웃 시간 (밀리초, 기본값: 100ms)
- * @returns 처리된 문자열
+ * @returns 패턴이 적용된 문자열 (일부 패턴이 타임아웃으로 스킵될 수 있음)
+ *
+ * @see MAX_STRING_LENGTH
+ * @see REGEX_TIMEOUT_MS
  */
 function applyRegexWithTimeout(text: string, timeoutMs: number = REGEX_TIMEOUT_MS): string {
   const startTime = Date.now();
   let result = text;
+  const patterns = sensitivePatternsManager.getPatterns();
 
   try {
     // 각 정규식 패턴을 순차적으로 적용
-    for (const [key, pattern] of Object.entries(SENSITIVE_PATTERNS)) {
+    for (const [key, pattern] of Object.entries(patterns)) {
       // 타임아웃 체크
       if (Date.now() - startTime > timeoutMs) {
         // 타임아웃 발생 시 남은 문자열은 처리하지 않고 반환
@@ -395,6 +615,32 @@ function applyRegexWithTimeout(text: string, timeoutMs: number = REGEX_TIMEOUT_M
 
 /**
  * 로그 레벨이 활성화되어 있는지 확인
+ *
+ * 요청한 로그 레벨이 현재 설정된 로그 레벨에서 출력 가능한지 확인합니다.
+ *
+ * **로그 레벨 계층 구조:**
+ * - `debug` (0): 모든 로그 출력
+ * - `info` (1): info, warn, error 출력
+ * - `warn` (2): warn, error만 출력
+ * - `error` (3): error만 출력
+ * - `none`: 모든 로그 비활성화
+ *
+ * **특별 규칙:**
+ * - `error` 레벨은 항상 활성화됨 (최우선)
+ * - `none` 레벨이면 모든 로그 비활성화
+ * - 요청 레벨이 현재 레벨보다 같거나 높으면 활성화
+ *
+ * @param requestedLevel 확인할 로그 레벨 (요청된 레벨)
+ * @param currentLevel 현재 설정된 로그 레벨
+ * @returns 로그를 출력해야 하면 `true`, 그렇지 않으면 `false`
+ *
+ * @example
+ * ```typescript
+ * shouldLog('debug', 'warn'); // false (warn 레벨에서는 debug 미출력)
+ * shouldLog('error', 'warn'); // true (error는 항상 출력)
+ * shouldLog('warn', 'warn'); // true (같은 레벨은 출력)
+ * shouldLog('info', 'none'); // false (none이면 모두 비활성화)
+ * ```
  */
 const shouldLog = (requestedLevel: LogLevel, currentLevel: LogLevel): boolean => {
   if (currentLevel === 'none') return false;
@@ -406,17 +652,45 @@ const shouldLog = (requestedLevel: LogLevel, currentLevel: LogLevel): boolean =>
   return requestedIndex >= currentIndex;
 };
 
-// 성능 최적화: 객체 sanitize 결과 캐싱 (WeakMap 활용)
-const sanitizeCache = new WeakMap<object, unknown>();
-
 /**
  * 민감한 정보 자동 필터링
- * 프로덕션에서 개인정보 보호를 위해 로그 데이터를 자동으로 정화
- * 
- * @param data 필터링할 데이터
- * @param depth 현재 재귀 깊이 (기본값: 0)
- * @param visited 순환 참조 방지를 위한 방문한 객체 집합
- * @returns 필터링된 데이터
+ *
+ * 프로덕션에서 개인정보 보호를 위해 로그 데이터를 자동으로 정화합니다.
+ * 재귀적으로 객체를 순회하며 민감한 정보를 마스킹합니다.
+ *
+ * **마스킹 우선순위:**
+ * 1. 키 기반 마스킹 (최우선): 객체 속성 키가 민감 키워드와 일치하면 전체 값이 `[REDACTED]`로 대체
+ * 2. 패턴 기반 마스킹: 값에서 이메일, 전화번호, 카드번호 등 패턴 감지 시 해당 패턴만 마스킹
+ *
+ * **처리되는 데이터 타입:**
+ * - 문자열: 정규식 패턴 매칭으로 민감 정보 마스킹
+ * - 객체: 재귀적으로 모든 속성 필터링 (최대 깊이 10단계)
+ * - 배열: 각 요소를 재귀적으로 필터링
+ * - Map/Set: 키와 값을 모두 필터링
+ * - Date: ISO 문자열로 변환 후 패턴 검사
+ * - Error: name, message, stack 필터링
+ * - TypedArray/Buffer: `[BINARY_DATA]` 또는 `[BUFFER]`로 마스킹
+ *
+ * **성능 및 보안 보호:**
+ * - 최대 깊이 제한: 10단계 (순환 참조 방지)
+ * - 문자열 길이 제한: 5,000자 (ReDoS 공격 방지)
+ * - 정규식 타임아웃: 100ms (ReDoS 공격 방지)
+ * - WeakMap 캐싱: 동일 객체 재사용으로 성능 최적화
+ * - WeakSet 순환 참조 감지: 메모리 누수 방지
+ *
+ * @param data 필터링할 데이터 (모든 타입 가능)
+ * @param depth 현재 재귀 깊이 (기본값: 0, 최대 10)
+ * @param visited 순환 참조 방지를 위한 방문한 객체 집합 (WeakSet)
+ * @returns 필터링된 데이터 (원본과 동일한 구조, 민감 정보만 마스킹)
+ *
+ * @example
+ * ```typescript
+ * sanitizeLogData({ password: '123', email: 'user@example.com' })
+ * // → { password: '[REDACTED]', email: '[REDACTED]' }
+ *
+ * sanitizeLogData({ userInfo: 'user@example.com' })
+ * // → { userInfo: '[EMAIL]' }
+ * ```
  */
 function sanitizeLogData(
   data: unknown,
@@ -447,6 +721,14 @@ function sanitizeLogData(
 
     // 정규식 적용 (민감한 정보 필터링)
     return applyRegexWithTimeout(data);
+  }
+
+  // 순환 참조 방지: 객체 계열은 먼저 방문 여부 확인
+  if (typeof data === 'object' && data !== null) {
+    if (visited.has(data as object)) {
+      return '[CIRCULAR]';
+    }
+    visited.add(data as object);
   }
 
   // Error 객체는 특별 처리
@@ -496,14 +778,6 @@ function sanitizeLogData(
   // TypedArray 처리 (Uint8Array, Int32Array 등)
   if (ArrayBuffer.isView(data) && !(data instanceof DataView)) {
     return '[BINARY_DATA]';
-  }
-
-  // 순환 참조 방지
-  if (typeof data === 'object' && data !== null) {
-    if (visited.has(data as object)) {
-      return '[CIRCULAR]';
-    }
-    visited.add(data as object);
   }
 
   // 객체인 경우 재귀적으로 필터링
@@ -562,24 +836,33 @@ function sanitizeLogData(
  * logger.error('Error occurred:', error);
  * ```
  */
-export class WebLogger {
+export class WebLogger<TMetadata extends LogMetadata = LogMetadata> {
   private readonly prefix: string;
   private readonly logLevelManager: LogLevelManager;
 
   /**
    * WebLogger 인스턴스 생성
    * 
-   * @param prefix 로그 메시지 앞에 붙을 접두사 (기본값: '[XIO]')
+   * @param prefixOrOptions 로그 prefix 또는 구성 옵션 (기본값: '[APP]')
+   * @param options 추가 구성 옵션 (prefix를 문자열로 전달할 때 사용)
    * 
    * @example
    * ```typescript
    * const logger = new WebLogger('[MyApp]');
+   * const custom = new WebLogger({ prefix: '[Secure]', sensitiveKeys: ['secret'] });
    * logger.info('Message'); // [MyApp] [12:34:56] INFO Message
    * ```
    */
-  constructor(prefix: string = '[XIO]') {
-    this.prefix = prefix;
+  constructor(
+    prefixOrOptions: string | WebLoggerOptions<TMetadata> = '[APP]',
+    options?: WebLoggerOptions<TMetadata>,
+  ) {
+    const resolvedOptions = typeof prefixOrOptions === 'string' ? options : prefixOrOptions;
+    const resolvedPrefix = typeof prefixOrOptions === 'string' ? prefixOrOptions : prefixOrOptions.prefix;
+
+    this.prefix = resolvedPrefix ?? '[APP]';
     this.logLevelManager = logLevelManager;
+    this.applyOptions(resolvedOptions);
   }
 
   /**
@@ -590,8 +873,27 @@ export class WebLogger {
    * @param prefix 로그 앞에 붙일 새 prefix
    * @returns 새 WebLogger 인스턴스
    */
-  withPrefix(prefix: string): WebLogger {
-    return new WebLogger(prefix);
+  withPrefix(prefix: string): WebLogger<TMetadata> {
+    return new WebLogger<TMetadata>(prefix);
+  }
+
+  /**
+   * 구성 옵션 적용
+   */
+  private applyOptions(options?: WebLoggerOptions<TMetadata>): void {
+    if (!options) return;
+
+    if (options.sensitiveKeys && Array.isArray(options.sensitiveKeys)) {
+      sensitiveKeysManager.setKeys(options.sensitiveKeys);
+    }
+
+    if (options.sensitivePatterns && Object.keys(options.sensitivePatterns).length > 0) {
+      sensitivePatternsManager.setPatterns(options.sensitivePatterns);
+    }
+
+    if (typeof options.suppressPatternWarnings === 'boolean') {
+      sensitivePatternsManager.setSuppressWarnings(options.suppressPatternWarnings);
+    }
   }
 
   /**
@@ -634,7 +936,11 @@ export class WebLogger {
    * 공통 로깅 메서드 - 중복 코드 제거
    * @private
    */
-  private logWithLevel(level: LogLevel, message?: unknown, ...optionalParams: unknown[]): void {
+  private logWithLevel(
+    level: LogLevel,
+    message?: unknown,
+    ...optionalParams: Array<TMetadata | unknown>
+  ): void {
     const currentLevel = this.currentLogLevel;
     if (!shouldLog(level, currentLevel)) return;
 
@@ -644,29 +950,30 @@ export class WebLogger {
     const config = LOG_LEVEL_CONFIGS[level];
 
     if (optionalParams.length === 0) {
-      // 단일 메시지만 있는 경우
+      // 단일 메시지만 있는 경우 (객체는 구조화해 출력)
+      const isStructuredObject =
+        typeof sanitizedMessage === 'object' &&
+        sanitizedMessage !== null &&
+        !Array.isArray(sanitizedMessage) &&
+        !(sanitizedMessage instanceof Date) &&
+        !ArrayBuffer.isView(sanitizedMessage);
+
+      if (isStructuredObject) {
+        this.logWithStyle(level, '', sanitizedMessage as LogMetadata, config.style);
+      } else {
+        this.logWithStyle(
+          level,
+          String(sanitizedMessage),
+          undefined,
+          config.style,
+        );
+      }
+    } else if (optionalParams.length === 1 && isMetadataCandidate(optionalParams[0])) {
+      // 메시지 + 메타데이터
       this.logWithStyle(
         level,
         String(sanitizedMessage),
-        undefined,
-        config.style,
-      );
-    } else if (
-      optionalParams.length === 1 &&
-      typeof optionalParams[0] === 'object' &&
-      !Array.isArray(optionalParams[0]) &&
-      optionalParams[0] !== null &&
-      !(optionalParams[0] instanceof Map) &&
-      !(optionalParams[0] instanceof Set) &&
-      !(optionalParams[0] instanceof Date) &&
-      !(ArrayBuffer.isView(optionalParams[0]))
-    ) {
-      // 메시지 + 메타데이터 객체인 경우 (기존 호환성 유지)
-      // Map, Set, Date, TypedArray는 제외
-      this.logWithStyle(
-        level,
-        String(sanitizedMessage),
-        sanitizedParams[0] as LogMetadata,
+        sanitizedParams[0] as TMetadata,
         config.style,
       );
     } else {
@@ -684,7 +991,7 @@ export class WebLogger {
    * @param message 로그 메시지
    * @param optionalParams 추가 파라미터 (console.debug와 동일)
    */
-  debug(message?: unknown, ...optionalParams: unknown[]): void {
+  debug(message?: unknown, ...optionalParams: Array<TMetadata | unknown>): void {
     this.logWithLevel('debug', message, ...optionalParams);
   }
 
@@ -695,7 +1002,7 @@ export class WebLogger {
    * @param message 로그 메시지
    * @param optionalParams 추가 파라미터 (console.info와 동일)
    */
-  info(message?: unknown, ...optionalParams: unknown[]): void {
+  info(message?: unknown, ...optionalParams: Array<TMetadata | unknown>): void {
     this.logWithLevel('info', message, ...optionalParams);
   }
 
@@ -706,7 +1013,7 @@ export class WebLogger {
    * @param message 로그 메시지
    * @param optionalParams 추가 파라미터 (console.warn과 동일)
    */
-  warn(message?: unknown, ...optionalParams: unknown[]): void {
+  warn(message?: unknown, ...optionalParams: Array<TMetadata | unknown>): void {
     this.logWithLevel('warn', message, ...optionalParams);
   }
 
@@ -718,7 +1025,7 @@ export class WebLogger {
    * @param message 로그 메시지
    * @param optionalParams 추가 파라미터 (console.error와 동일)
    */
-  error(message?: unknown, ...optionalParams: unknown[]): void {
+  error(message?: unknown, ...optionalParams: Array<TMetadata | unknown>): void {
     this.logWithLevel('error', message, ...optionalParams);
   }
 
@@ -763,7 +1070,7 @@ export class WebLogger {
    * logger.groupEnd();
    * ```
    */
-  group(title: string, data?: LogMetadata): void {
+  group(title: string, data?: TMetadata): void {
     if (this.currentLogLevel === 'none') return;
 
     // 민감한 정보 필터링
@@ -890,15 +1197,38 @@ export class WebLogger {
 
     // 메타데이터가 있으면 추가 출력
     if (metadata) {
-      // Map, Set 등은 console.log로 출력
-      if (metadata instanceof Map || metadata instanceof Set) {
-        console.log(metadata);
-      } else if (typeof metadata === 'object' && !Array.isArray(metadata) && console.table && Object.keys(metadata).length > 0) {
+      this.printMetadata(metadata);
+    }
+  }
+
+  /**
+   * 메타데이터 출력 헬퍼
+   */
+  private printMetadata(metadata: LogMetadata): void {
+    if (metadata instanceof Map || metadata instanceof Set) {
+      console.log(metadata);
+      return;
+    }
+
+    if (Array.isArray(metadata)) {
+      if (console.table) {
         console.table(metadata);
       } else {
         console.log(metadata);
       }
+      return;
     }
+
+    if (metadata && typeof metadata === 'object') {
+      if (console.table && Object.keys(metadata).length > 0) {
+        console.table(metadata);
+      } else {
+        console.log(metadata);
+      }
+      return;
+    }
+
+    console.log(metadata);
   }
 
   /**
@@ -1000,4 +1330,42 @@ export const getSensitiveKeys = (): string[] => {
  */
 export const resetSensitiveKeys = (): void => {
   sensitiveKeysManager.reset();
+};
+
+/**
+ * 민감 패턴 교체 (전역 설정)
+ * 모든 WebLogger 인스턴스에 적용됩니다.
+ */
+export const setSensitivePatterns = (patterns: SensitivePatternMap): void => {
+  sensitivePatternsManager.setPatterns(patterns);
+};
+
+/**
+ * 민감 패턴 병합 (전역 설정)
+ * 기존 패턴을 유지하면서 새로운 패턴을 추가/덮어씁니다.
+ */
+export const addSensitivePatterns = (patterns: SensitivePatternMap): void => {
+  sensitivePatternsManager.mergePatterns(patterns);
+};
+
+/**
+ * 현재 민감 패턴 가져오기
+ */
+export const getSensitivePatterns = (): SensitivePatternMap => {
+  return sensitivePatternsManager.getPatterns();
+};
+
+/**
+ * 민감 패턴 기본값으로 초기화
+ */
+export const resetSensitivePatterns = (): void => {
+  sensitivePatternsManager.reset();
+};
+
+/**
+ * 민감 패턴 관련 경고 표시 여부 설정
+ * 기본값: false (경고 표시). true로 설정 시 기본 패턴 제거 경고를 숨깁니다.
+ */
+export const setSensitivePatternWarnings = (suppress: boolean): void => {
+  sensitivePatternsManager.setSuppressWarnings(suppress);
 };

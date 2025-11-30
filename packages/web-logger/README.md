@@ -1,7 +1,6 @@
 # @cp949/web-logger
 
 [![npm version](https://img.shields.io/npm/v/@cp949/web-logger.svg)](https://www.npmjs.com/package/@cp949/web-logger)
-[![Bundle Size](https://img.shields.io/badge/Bundle%20Size-3.16KB%20(brotli)-green)](BUNDLE_SIZE.md)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.0%2B-blue)](https://www.typescriptlang.org/)
 
@@ -20,7 +19,6 @@ A production-optimized web logging library. Provides rich debugging information 
 - Safe circular reference handling: Maximum depth limit of 10 levels
 
 ### ⚡ Performance Optimized
-- **Ultra-lightweight**: Only 3.16KB (Brotli), 7KB (Gzip)
 - Tree Shaking support: Dead code elimination possible through build-time constant injection
 - Regex caching: Performance improvement through reuse of compiled regex patterns
 - Conditional logging: Log level check performed first to prevent unnecessary processing
@@ -77,12 +75,49 @@ logError('Error occurred!');
 ```typescript
 import { WebLogger } from '@cp949/web-logger';
 
+// Simple prefix
 const logger = new WebLogger('[MyApp]');
 logger.debug('Debug');
 logger.info('Info');
 logger.warn('Warning');
 logger.error('Error');
+
+// Custom metadata type (TypeScript)
+type UserMeta = { userId: string; email?: string };
+const typedLogger = new WebLogger<UserMeta>('[Typed]');
+typedLogger.info('User logged in', { userId: 'u1' });
+
+// Default prefix is "[APP]" when none is provided
+const defaultLogger = new WebLogger();
+defaultLogger.info('Hello');
 ```
+
+### 2. React Hook (web-logger-react)
+
+```tsx
+import { useWebLogger } from '@cp949/web-logger-react';
+
+function UserList() {
+  const logger = useWebLogger('[UserList]');
+
+  useEffect(() => {
+    logger.info('Component mounted');
+  }, [logger]);
+
+  return <div>UserList</div>;
+}
+```
+
+More patterns: see `packages/web-logger-react/README.md` in this repo or the npm package page.
+Core options/API: see `packages/web-logger/README.md` for sensitive key/pattern controls.
+
+### 3. Sandbox / Playground Ideas
+
+- Try masking: `logger.info({ email: 'user@example.com', card: '4111-1111-1111-1111' })`
+- Toggle log level in console: `window.__WEB_LOGGER_LOG_LEVEL__ = 'debug' | 'warn'`
+- Test structured arrays/maps/sets: `logger.debug(new Map([['key', 'value']]))`
+- Inspect sensitive key runtime changes: `addSensitiveKey('customSecret'); logger.info({ customSecret: 'secret' })`
+- Run the demo script: `pnpm demo` (uses `packages/web-logger/scripts/demo.ts`)
 
 ### 3. Log Level Control
 
@@ -97,7 +132,19 @@ setLogLevel('debug'); // All logs output
 console.log(getLogLevel()); // 'debug'
 ```
 
-### 4. Automatic Sensitive Data Filtering
+**Runtime overrides win:** `setLogLevel` (or `window.__WEB_LOGGER_LOG_LEVEL__`) always overrides build-time seeds (`__INITIAL_LOG_LEVEL__` / `WEB_LOGGER_LOG_LEVEL`). Use seeds as defaults; rely on runtime switches for live debugging without redeploying.
+
+### 4. Log Structured Objects Directly
+
+```typescript
+logger.info({ user: 'alice', password: 'secret' });
+// Renders as a structured table with masked fields (e.g., password → [REDACTED])
+
+// Arrays/Maps/Sets stay structured too, with circular references shown as [CIRCULAR].
+logger.debug('Payload:', new Map([['self', map]]));
+```
+
+### 5. Automatic Sensitive Data Filtering
 
 Web Logger provides two types of data masking with clear priority:
 
@@ -113,7 +160,7 @@ logDebug('User data:', {
 });
 ```
 
-**Sensitive keys include:** `password`, `pwd`, `passwd`, `token`, `apiKey`, `api_key`, `accessToken`, `refreshToken`, `authToken`, `authorization`, `email`, `phone`, `phoneNumber`, `mobile`, `creditCard`, `cardNumber`, `card_number`, `ssn`, `socialSecurityNumber`, `residentNumber`, `resident_number`, `secret`, `secretKey`, `privateKey`, `private_key`, `sessionId`, `session_id`, `cookie`, `cookies`
+**Sensitive keys include:** `password`, `passwd`, `pass`, `secret`, `token`, `apiKey`, `api_key`, `auth`, `authorization`, `cookie`, `session`, `private`, `ssn`, `email`, `phone`, `tel`, `mobile`, `card`, `credit`, `cvv`, `cvc`
 
 #### Pattern-based Masking (Lower Priority)
 For non-sensitive keys, values are scanned for patterns and masked accordingly:
@@ -153,6 +200,112 @@ const data = {
 3. **Built-in objects**: Map, Set, Date, TypedArray, and Buffer are handled specially (see [Built-in Objects Handling](#-built-in-objects-handling) section).
 
 4. **Nested objects**: Recursive sanitization up to 10 levels deep to prevent circular references.
+
+5. **Cache invalidation on key changes**: Adding/removing/resetting sensitive keys clears the sanitization cache so new settings apply immediately at runtime.
+
+### Sensitive Key Cookbook
+
+```typescript
+import { addSensitiveKey, removeSensitiveKey, resetSensitiveKeys, getSensitiveKeys } from '@cp949/web-logger';
+
+// Add custom keys (immediately applied)
+addSensitiveKey('customSecret');
+addSensitiveKey('apiSecret');
+
+// Remove a default key when you explicitly need raw values
+removeSensitiveKey('email');
+
+// Inspect current keys
+console.log(getSensitiveKeys());
+
+// Reset to defaults
+resetSensitiveKeys();
+```
+
+### Override defaults via options
+
+```typescript
+import { WebLogger, setSensitivePatterns, addSensitivePatterns } from '@cp949/web-logger';
+
+// Replace default keys at construction time
+const logger = new WebLogger({
+  prefix: '[Secure]',
+  sensitiveKeys: ['customSecret', 'apiSecret'], // replaces defaults
+  suppressPatternWarnings: true, // silence warnings if you drop built-in patterns
+});
+
+// Replace default patterns globally
+setSensitivePatterns({
+  ticket: /TICKET-\d+/g,
+  hash: /\b[a-f0-9]{40}\b/gi,
+});
+
+// Merge without losing defaults
+addSensitivePatterns({
+  ticket: /TICKET-\d+/g,
+});
+
+// Build-time seeds vs runtime:
+// - Use build-time defines for defaults (__INITIAL_LOG_LEVEL__, etc.)
+// - Prefer runtime APIs (setLogLevel, addSensitivePatterns) for live toggles/experiments
+
+// Control warnings when replacing defaults
+setSensitivePatternWarnings(true); // suppress warnings
+setSensitivePatternWarnings(false); // show warnings (default)
+setSensitivePatternWarnings(true); // temporarily suppress
+setSensitivePatterns({ ticket: /TICKET-\d+/g });
+setSensitivePatternWarnings(false); // restore default
+
+// Typed metadata example
+type UserMeta = { userId: string; email?: string };
+const typedLogger = new WebLogger<UserMeta>('[Typed]');
+// Good
+typedLogger.info('User', { userId: 'u1' });
+// @ts-expect-error - email must be string | undefined
+typedLogger.info('User', { userId: 'u2', email: 123 });
+```
+
+> `setSensitivePatterns` replaces all defaults and emits a warning if you drop built-in patterns. Use `addSensitivePatterns` to extend while keeping defaults.
+
+### Bundler Tips (Vite / webpack / Rspack)
+- Define build-time constants for better tree-shaking: `__DEV__`, `__NODE_ENV__`, `__INITIAL_LOG_LEVEL__`, and replace `process.env.NODE_ENV` / `WEB_LOGGER_LOG_LEVEL`.
+- Ensure ESM tree-shaking is enabled (`sideEffects: false` or per-file) so unused levels/paths drop out.
+- Browser-only: gate usage behind `typeof window !== 'undefined'` when integrating in isomorphic code.
+- If you alias `process.env` in bundlers, keep the defines aligned to avoid double-injection.
+
+**Vite define example**
+```ts
+// vite.config.ts
+import { defineConfig } from 'vite';
+
+export default defineConfig({
+  define: {
+    __DEV__: true,
+    __NODE_ENV__: JSON.stringify(process.env.NODE_ENV || 'development'),
+    __INITIAL_LOG_LEVEL__: JSON.stringify('debug'),
+    'process.env.NODE_ENV': JSON.stringify(process.env.NODE_ENV || 'development'),
+    'process.env.WEB_LOGGER_LOG_LEVEL': JSON.stringify(process.env.WEB_LOGGER_LOG_LEVEL || ''),
+  },
+});
+```
+
+**webpack/Rspack define example**
+```js
+// webpack.config.js
+const webpack = require('webpack');
+
+module.exports = {
+  plugins: [
+    new webpack.DefinePlugin({
+      __DEV__: JSON.stringify(process.env.NODE_ENV !== 'production'),
+      __NODE_ENV__: JSON.stringify(process.env.NODE_ENV || 'development'),
+      __INITIAL_LOG_LEVEL__: JSON.stringify(process.env.WEB_LOGGER_LOG_LEVEL || ''),
+      'process.env.NODE_ENV': JSON.stringify(process.env.NODE_ENV || 'development'),
+      'process.env.WEB_LOGGER_LOG_LEVEL': JSON.stringify(process.env.WEB_LOGGER_LOG_LEVEL || ''),
+    }),
+  ],
+};
+```
 
 ### 5. Console API Compatibility
 
@@ -305,35 +458,25 @@ if (typeof window !== 'undefined') {
 
 Log levels are determined in the following priority order:
 
-1. Runtime global variables (highest priority, immediately applied)
-```javascript
-// Browser environment
-window.__WEB_LOGGER_LOG_LEVEL__ = 'debug';
-
-// Node.js/SSR environment
-globalThis.__WEB_LOGGER_LOG_LEVEL__ = 'debug';
+1. Build-time environment variable (highest priority, injected at build time)
+```bash
+WEB_LOGGER_LOG_LEVEL=debug npm run build
 ```
-Changes are immediately applied to all WebLogger instances.
+Injected as a constant at build time and used for Tree Shaking optimization.
 
-2. Build-time constant (optional, injected at build time)
-```typescript
-// In your bundler config (tsup, webpack, vite, etc.)
-define: {
-  __INITIAL_LOG_LEVEL__: JSON.stringify('warn')
-}
-```
-Used for setting initial log level at build time.
-
-3. Runtime environment variable
+2. Runtime environment variable (fallback)
 ```bash
 WEB_LOGGER_LOG_LEVEL=debug npm run dev
 ```
-Used when global variables and build-time constants are not set.
+Used when build-time constant is not available.
 
-4. Development mode detection
-- Automatically detects development environment using NODE_ENV
+3. Global variable (runtime, immediately applied)
+```javascript
+window.__WEB_LOGGER_LOG_LEVEL__ = 'debug';
+```
+Immediately applied to all WebLogger instances.
 
-5. Default value
+4. Default value
 - Development environment: `debug` (all logs output)
 - Production environment: `warn` (only warn and error output)
 
@@ -594,9 +737,6 @@ class WebLogger {
   setLogLevel(level: LogLevel): void;
   get currentLogLevel(): LogLevel;
   get isEnabled(): boolean;
-
-  // Instance methods
-  withPrefix(prefix: string): WebLogger;
 }
 ```
 
@@ -622,13 +762,6 @@ function addSensitiveKey(key: string): void;
 function removeSensitiveKey(key: string): void;
 function getSensitiveKeys(): string[];
 function resetSensitiveKeys(): void;
-
-// Sensitive pattern management
-function setSensitivePatterns(patterns: SensitivePatternMap): void;
-function addSensitivePatterns(patterns: SensitivePatternMap): void;
-function getSensitivePatterns(): SensitivePatternMap;
-function resetSensitivePatterns(): void;
-function setSensitivePatternWarnings(suppress: boolean): void;
 ```
 
 ### Type Definitions

@@ -15,8 +15,10 @@ export const logger = new WebLogger('[APP]');
  * @param prefix 로그 앞에 붙일 prefix (예: '[UserList]')
  * @returns 지정된 prefix를 사용하는 WebLogger
  */
-export const createPrefixedLogger = (prefix: string): WebLogger => {
-  return webLogger.withPrefix(prefix);
+export const createPrefixedLogger = <TMetadata extends LogMetadata = LogMetadata>(
+  prefix: string,
+): WebLogger<TMetadata> => {
+  return webLogger.withPrefix(prefix) as WebLogger<TMetadata>;
 };
 
 /**
@@ -260,7 +262,9 @@ export const getLogLevel = (): LogLevel => {
  * consoleCompatible.error('error', error);
  * ```
  */
-export const convertToConsoleLogger = (logger: WebLogger): Partial<Console> => {
+export const convertToConsoleLogger = <TMetadata extends LogMetadata = LogMetadata>(
+  logger: WebLogger<TMetadata>,
+): Partial<Console> => {
   return {
     // 기본 로깅 메서드들 (WebLogger 사용)
     debug: (...data: unknown[]): void => {
@@ -302,7 +306,7 @@ export const convertToConsoleLogger = (logger: WebLogger): Partial<Console> => {
       } else {
         const title = String(data[0]);
         const metadata = data.length > 1 && typeof data[1] === 'object' && !Array.isArray(data[1]) && data[1] !== null
-          ? (data[1] as LogMetadata)
+          ? (data[1] as TMetadata)
           : undefined;
         logger.group(title, metadata);
       }
@@ -317,7 +321,7 @@ export const convertToConsoleLogger = (logger: WebLogger): Partial<Console> => {
       } else {
         const title = String(data[0]);
         const metadata = data.length > 1 && typeof data[1] === 'object' && !Array.isArray(data[1]) && data[1] !== null
-          ? (data[1] as LogMetadata)
+          ? (data[1] as TMetadata)
           : undefined;
         logger.group(title, metadata);
       }

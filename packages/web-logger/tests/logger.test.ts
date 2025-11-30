@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { WebLogger } from './WebLogger';
-import { convertToConsoleLogger, createPrefixedLogger, getLogLevel, setLogLevel } from './logger';
+import { WebLogger } from '../src/WebLogger';
+import { convertToConsoleLogger, createPrefixedLogger, getLogLevel, setLogLevel } from '../src/logger';
 
 describe('convertToConsoleLogger', () => {
   let logger: WebLogger;

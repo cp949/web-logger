@@ -1,0 +1,22 @@
+[
+  {
+    "name": "@cp949/web-logger - ESM",
+    "path": "packages/web-logger/dist/index.js",
+    "limit": "30 KB"
+  },
+  {
+    "name": "@cp949/web-logger - CJS",
+    "path": "packages/web-logger/dist/index.cjs",
+    "limit": "30 KB"
+  },
+  {
+    "name": "@cp949/web-logger-react - ESM",
+    "path": "packages/web-logger-react/dist/index.js",
+    "limit": "1 KB"
+  },
+  {
+    "name": "@cp949/web-logger-react - CJS",
+    "path": "packages/web-logger-react/dist/index.cjs",
+    "limit": "1 KB"
+  }
+]

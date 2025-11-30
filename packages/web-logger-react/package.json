@@ -1,0 +1,82 @@
+{
+  "name": "@cp949/web-logger-react",
+  "version": "1.0.3",
+  "description": "React hooks for @cp949/web-logger",
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "browser": "./dist/index.js",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "browser": "./dist/index.js",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "peerDependencies": {
+    "@cp949/web-logger": "^1.0.3",
+    "react": "^18.0.0 || ^19.0.0"
+  },
+  "devDependencies": {
+    "@cp949/web-logger": "workspace:*",
+    "@testing-library/react": "^16.3.0",
+    "@types/node": "^24.10.1",
+    "@types/react": "^19.2.7",
+    "@types/react-dom": "^19.2.3",
+    "@typescript-eslint/eslint-plugin": "^8.48.0",
+    "@typescript-eslint/parser": "^8.48.0",
+    "@vitejs/plugin-react": "^5.1.1",
+    "@vitest/coverage-v8": "^4.0.14",
+    "eslint": "^9.39.1",
+    "eslint-plugin-react": "^7.37.5",
+    "eslint-plugin-react-hooks": "^7.0.1",
+    "jsdom": "^27.2.0",
+    "prettier": "^3.7.3",
+    "react": "^18.0.0",
+    "react-dom": "^18.0.0",
+    "tsup": "^8.5.1",
+    "typescript": "^5.9.3",
+    "vitest": "^4.0.14"
+  },
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "lint": "eslint . --ext .ts,.tsx",
+    "lint:fix": "eslint . --ext .ts,.tsx --fix",
+    "format": "prettier --write \"src/**/*.{ts,tsx}\"",
+    "format:check": "prettier --check \"src/**/*.{ts,tsx}\"",
+    "clean": "rm -rf dist",
+    "bundle-size": "node -e \"const fs=require('fs');const esm=fs.statSync('dist/index.js').size;const cjs=fs.statSync('dist/index.cjs').size;console.log('ESM:',(esm/1024).toFixed(2),'KB');console.log('CJS:',(cjs/1024).toFixed(2),'KB');console.log('Total:',((esm+cjs)/1024).toFixed(2),'KB')\"",
+    "build:analyze": "tsup && pnpm run bundle-size",
+    "size": "pnpm run build:analyze"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "keywords": [
+    "react",
+    "hooks",
+    "logger",
+    "web-logger",
+    "react-hooks"
+  ],
+  "author": "jjfive",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/cp949/web-logger.git"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

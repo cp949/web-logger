@@ -1,5 +1,15 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { WebLogger, addSensitiveKey, removeSensitiveKey, getSensitiveKeys, resetSensitiveKeys } from './WebLogger';
+import {
+  WebLogger,
+  addSensitiveKey,
+  removeSensitiveKey,
+  getSensitiveKeys,
+  resetSensitiveKeys,
+  resetSensitivePatterns,
+  setSensitivePatterns,
+  addSensitivePatterns,
+  setSensitivePatternWarnings,
+} from '../src/WebLogger';
 
 describe('WebLogger', () => {
   let logger: WebLogger;
@@ -71,6 +81,10 @@ describe('WebLogger', () => {
     if (typeof localStorage !== 'undefined') {
       localStorage.clear();
     }
+    // 민감 키/패턴 초기화
+    resetSensitiveKeys();
+    resetSensitivePatterns();
+    setSensitivePatternWarnings(false);
     // 환경 변수 복원
     process.env.NODE_ENV = originalEnv;
     // 모든 모킹 복원
@@ -140,6 +154,96 @@ describe('WebLogger', () => {
       const message = extractMessageFromLog(consoleSpy.log.mock.calls);
       expect(message).toContain('[PASSWORD]');
       expect(message).not.toContain('secret123');
+    });
+  });
+
+  describe('캐시 및 구조화 출력', () => {
+    it('민감 키 변경 시 캐시가 무효화되어 새 설정을 반영해야 함', () => {
+      const data = { customField: 'secret123', normal: 'ok' };
+
+      logger.debug('Data:', data);
+      expect(consoleSpy.table).toHaveBeenCalled();
+      const firstTableData = consoleSpy.table.mock.calls[0][0] as any;
+      expect(firstTableData.customField).toBe('secret123');
+
+      vi.clearAllMocks();
+      addSensitiveKey('customField');
+
+      logger.debug('Data:', data);
+      expect(consoleSpy.table).toHaveBeenCalled();
+      const secondTableData = consoleSpy.table.mock.calls[0][0] as any;
+      expect(secondTableData.customField).toBe('[REDACTED]');
+    });
+
+    it('단일 객체 메시지를 구조화된 형태로 출력해야 함', () => {
+      const payload = { user: 'john', password: 'secret123' };
+
+      logger.info(payload);
+
+      expect(consoleSpy.table).toHaveBeenCalled();
+      const tableData = consoleSpy.table.mock.calls[0][0] as any;
+      expect(tableData.user).toBe('john');
+      expect(tableData.password).toBe('[REDACTED]');
+    });
+  });
+
+  describe('구성 옵션', () => {
+    it('생성 시 민감 키를 교체할 수 있어야 함', () => {
+      vi.clearAllMocks();
+
+      const customLogger = new WebLogger({ prefix: '[Opt]', sensitiveKeys: ['custom'] });
+      customLogger.info('payload', { custom: 'secret', password: 'visible' });
+
+      expect(consoleSpy.table).toHaveBeenCalled();
+      const tableData = consoleSpy.table.mock.calls[0][0] as any;
+      expect(tableData.custom).toBe('[REDACTED]');
+      expect(tableData.password).toBe('visible');
+    });
+
+    it('생성 시 민감 패턴을 교체할 수 있어야 함', () => {
+      vi.clearAllMocks();
+
+      const customLogger = new WebLogger({
+        prefix: '[Opt]',
+        sensitivePatterns: { ticket: /TICKET-\d+/g },
+      });
+
+      customLogger.debug('Ticket:', 'TICKET-123');
+      const logCalls = consoleSpy.log.mock.calls.length ? consoleSpy.log.mock.calls : consoleSpy.debug.mock.calls;
+      expect(logCalls.length).toBeGreaterThan(0);
+      const flattened = logCalls.flat().filter((arg: unknown) => typeof arg === 'string') as string[];
+      expect(flattened.some((arg) => arg.includes('[TICKET]'))).toBe(true);
+      expect(flattened.some((arg) => arg.includes('TICKET-123'))).toBe(false);
+
+      vi.clearAllMocks();
+      customLogger.debug('Email: user@example.com');
+      const secondCalls = consoleSpy.log.mock.calls.length ? consoleSpy.log.mock.calls : consoleSpy.debug.mock.calls;
+      const secondMessage = extractMessageFromLog(secondCalls);
+      expect(secondMessage).toContain('user@example.com');
+    });
+
+    it('addSensitivePatterns는 기본 패턴을 유지하면서 추가해야 함', () => {
+      vi.clearAllMocks();
+      addSensitivePatterns({ ticket: /TICKET-\d+/g });
+
+      logger.debug('Ticket:', 'TICKET-999');
+      const ticketCalls = consoleSpy.log.mock.calls.length ? consoleSpy.log.mock.calls : consoleSpy.debug.mock.calls;
+      const flattened = ticketCalls.flat().filter((arg: unknown) => typeof arg === 'string') as string[];
+      expect(flattened.some((arg) => arg.includes('[TICKET]'))).toBe(true);
+
+      vi.clearAllMocks();
+      logger.debug('Email user@example.com');
+      const emailMessage = extractMessageFromLog(consoleSpy.log.mock.calls.length ? consoleSpy.log.mock.calls : consoleSpy.debug.mock.calls);
+      expect(emailMessage).toContain('[EMAIL]');
+    });
+
+    it('setSensitivePatterns로 기본 패턴을 제거하면 경고를 표시해야 함', () => {
+      const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+      setSensitivePatterns({ ticket: /TICKET-\d+/g });
+      expect(warnSpy).toHaveBeenCalled();
+
+      warnSpy.mockRestore();
     });
   });
 
@@ -327,6 +431,32 @@ describe('WebLogger', () => {
         })
       );
       expect(hasMaxDepth).toBe(true);
+    });
+  });
+
+  describe('순환 Map/Set', () => {
+    it('Map의 순환 참조를 안전하게 처리해야 함', () => {
+      const map = new Map<string, unknown>();
+      map.set('self', map);
+
+      expect(() => logger.debug('Map:', map)).not.toThrow();
+
+      const mapCalls = [...consoleSpy.log.mock.calls, ...consoleSpy.debug.mock.calls];
+      const mapArg = mapCalls.flat().find((arg: unknown) => arg instanceof Map) as Map<string, unknown> | undefined;
+      expect(mapArg).toBeInstanceOf(Map);
+      expect(mapArg?.get('self')).toBe('[CIRCULAR]');
+    });
+
+    it('Set의 순환 참조를 안전하게 처리해야 함', () => {
+      const set = new Set<unknown>();
+      set.add(set);
+
+      expect(() => logger.debug('Set:', set)).not.toThrow();
+
+      const setCalls = [...consoleSpy.log.mock.calls, ...consoleSpy.debug.mock.calls];
+      const setArg = setCalls.flat().find((arg: unknown) => arg instanceof Set) as Set<unknown> | undefined;
+      expect(setArg).toBeInstanceOf(Set);
+      expect(Array.from(setArg ?? []).includes('[CIRCULAR]')).toBe(true);
     });
   });
 

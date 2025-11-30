@@ -1,7 +1,6 @@
 # @cp949/web-logger
 
 [![npm version](https://img.shields.io/npm/v/@cp949/web-logger.svg)](https://www.npmjs.com/package/@cp949/web-logger)
-[![Bundle Size](https://img.shields.io/badge/Bundle%20Size-3.16KB%20(brotli)-green)](BUNDLE_SIZE.md)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.0%2B-blue)](https://www.typescriptlang.org/)
 
@@ -20,7 +19,6 @@
 - 순환 참조 안전 처리: 최대 깊이 10단계 제한
 
 ### ⚡ 성능 최적화
-- **초경량**: 단 3.16KB (Brotli 압축), 7KB (Gzip)
 - Tree Shaking 지원: 빌드 타임 상수 주입으로 데드 코드 제거 가능
 - 정규식 캐싱: 컴파일된 정규식 재사용으로 성능 향상
 - 조건부 로깅: 로그 레벨 체크를 먼저 수행하여 불필요한 처리 방지
@@ -77,12 +75,49 @@ logError('에러 발생!');
 ```typescript
 import { WebLogger } from '@cp949/web-logger';
 
+// 단순 prefix
 const logger = new WebLogger('[MyApp]');
 logger.debug('디버깅');
 logger.info('정보');
 logger.warn('경고');
 logger.error('에러');
+
+// 커스텀 메타데이터 타입 (TypeScript)
+type UserMeta = { userId: string; email?: string };
+const typedLogger = new WebLogger<UserMeta>('[Typed]');
+typedLogger.info('사용자 로그인', { userId: 'u1' });
+
+// prefix를 생략하면 기본값 "[APP]"이 사용됩니다
+const defaultLogger = new WebLogger();
+defaultLogger.info('안녕하세요');
 ```
+
+### 2. React 훅 (web-logger-react)
+
+```tsx
+import { useWebLogger } from '@cp949/web-logger-react';
+
+function UserList() {
+  const logger = useWebLogger('[UserList]');
+
+  useEffect(() => {
+    logger.info('컴포넌트 마운트');
+  }, [logger]);
+
+  return <div>UserList</div>;
+}
+```
+
+더 많은 사용 패턴은 저장소의 `packages/web-logger-react/README.ko.md` 또는 npm 패키지 페이지에서 확인하세요.
+민감 키/패턴 등 옵션은 `packages/web-logger/README.ko.md`에서 확인할 수 있습니다.
+
+### 3. 샌드박스/플레이그라운드 아이디어
+
+- 마스킹 체험: `logger.info({ email: 'user@example.com', card: '4111-1111-1111-1111' })`
+- 콘솔에서 로그 레벨 토글: `window.__WEB_LOGGER_LOG_LEVEL__ = 'debug' | 'warn'`
+- 배열/Map/Set 구조 확인: `logger.debug(new Map([['key', 'value']]))`
+- 민감 키 런타임 변경 확인: `addSensitiveKey('customSecret'); logger.info({ customSecret: 'secret' })`
+- 데모 스크립트 실행: `pnpm demo` (packages/web-logger/scripts/demo.ts 사용)
 
 ### 3. 로그 레벨 제어
 
@@ -97,7 +132,19 @@ setLogLevel('debug'); // 모든 로그 출력
 console.log(getLogLevel()); // 'debug'
 ```
 
-### 4. 민감한 정보 자동 필터링
+**런타임 우선:** `setLogLevel`(또는 `window.__WEB_LOGGER_LOG_LEVEL__`)은 항상 빌드 시 기본값(`__INITIAL_LOG_LEVEL__`, `WEB_LOGGER_LOG_LEVEL`)보다 우선합니다. 기본값은 시드로 두고, 라이브 디버깅은 런타임 스위치로 제어하세요.
+
+### 4. 객체를 바로 구조화해 로깅
+
+```typescript
+logger.info({ user: 'alice', password: 'secret' });
+// 구조화된 테이블로 표시되고 민감 필드(예: password)는 [REDACTED] 처리됩니다.
+
+// 배열/Map/Set도 구조를 유지하며, 순환 참조는 [CIRCULAR]로 표시됩니다.
+logger.debug('Payload:', new Map([['self', map]]));
+```
+
+### 5. 민감한 정보 자동 필터링
 
 Web Logger는 명확한 우선순위를 가진 두 가지 데이터 마스킹 방식을 제공합니다:
 
@@ -153,6 +200,112 @@ const data = {
 3. **내장 객체**: Map, Set, Date, TypedArray, Buffer는 특별히 처리됩니다 ([내장 객체 처리](#-내장-객체-처리) 섹션 참조).
 
 4. **중첩 객체**: 순환 참조를 방지하기 위해 최대 10 레벨까지 재귀적으로 sanitize됩니다.
+
+5. **키 변경 시 캐시 무효화**: 민감 키를 추가·제거·초기화하면 정화 캐시를 비워 새 설정이 즉시 반영됩니다.
+
+### 민감 키 Cookbook
+
+```typescript
+import { addSensitiveKey, removeSensitiveKey, resetSensitiveKeys, getSensitiveKeys } from '@cp949/web-logger';
+
+// 커스텀 키 추가 (즉시 적용)
+addSensitiveKey('customSecret');
+addSensitiveKey('apiSecret');
+
+// 기본 키를 노출해야 할 때만 제거
+removeSensitiveKey('email');
+
+// 현재 키 확인
+console.log(getSensitiveKeys());
+
+// 기본값으로 되돌리기
+resetSensitiveKeys();
+```
+
+### 옵션으로 기본값 교체하기
+
+```typescript
+import { WebLogger, setSensitivePatterns, addSensitivePatterns } from '@cp949/web-logger';
+
+// 생성 시 기본 키를 교체
+const logger = new WebLogger({
+  prefix: '[Secure]',
+  sensitiveKeys: ['customSecret', 'apiSecret'], // 기본 목록을 대체
+  suppressPatternWarnings: true, // 기본 패턴 제거 시 경고를 숨김
+});
+
+// 기본 패턴을 전역으로 교체
+setSensitivePatterns({
+  ticket: /TICKET-\d+/g,
+  hash: /\b[a-f0-9]{40}\b/gi,
+});
+
+// 기본 패턴을 유지한 채 추가
+addSensitivePatterns({
+  ticket: /TICKET-\d+/g,
+});
+
+// 빌드 타임 vs 런타임
+// - 기본값은 빌드 타임 define(__INITIAL_LOG_LEVEL__ 등)으로 주입
+// - 라이브 토글/실험은 런타임 API(setLogLevel, addSensitivePatterns 등)를 사용
+
+// 기본 패턴 제거 시 경고 제어
+setSensitivePatternWarnings(true); // 경고 숨김
+setSensitivePatternWarnings(false); // 경고 표시 (기본)
+setSensitivePatternWarnings(true); // 일시적으로 경고 숨기기
+setSensitivePatterns({ ticket: /TICKET-\d+/g });
+setSensitivePatternWarnings(false); // 다시 켜기
+
+// 타입이 있는 메타데이터 예제
+type UserMeta = { userId: string; email?: string };
+const typedLogger = new WebLogger<UserMeta>('[Typed]');
+// 정상
+typedLogger.info('사용자', { userId: 'u1' });
+// @ts-expect-error - email은 문자열이어야 함
+typedLogger.info('사용자', { userId: 'u2', email: 123 });
+```
+
+> `setSensitivePatterns`는 기본 패턴을 모두 대체하며, 기본 패턴을 제거하면 경고를 출력합니다. 기본을 유지하고 확장하려면 `addSensitivePatterns`를 사용하세요.
+
+### 번들러 팁 (Vite / webpack / Rspack)
+- 트리 쉐이킹을 위해 빌드 타임 상수를 정의하세요: `__DEV__`, `__NODE_ENV__`, `__INITIAL_LOG_LEVEL__`, 그리고 `process.env.NODE_ENV` / `WEB_LOGGER_LOG_LEVEL` 대체.
+- ESM 트리 쉐이킹이 켜져 있는지 확인(`sideEffects: false` 또는 파일별 설정)해 사용하지 않는 코드가 제거되도록 합니다.
+- 브라우저 전용이므로 isomorphic 코드에서는 `typeof window !== 'undefined'`로 가드하세요.
+- 번들러에서 `process.env`를 별도 처리한다면 define 설정이 중복/충돌하지 않도록 맞춰주세요.
+
+**Vite define 예시**
+```ts
+// vite.config.ts
+import { defineConfig } from 'vite';
+
+export default defineConfig({
+  define: {
+    __DEV__: true,
+    __NODE_ENV__: JSON.stringify(process.env.NODE_ENV || 'development'),
+    __INITIAL_LOG_LEVEL__: JSON.stringify('debug'),
+    'process.env.NODE_ENV': JSON.stringify(process.env.NODE_ENV || 'development'),
+    'process.env.WEB_LOGGER_LOG_LEVEL': JSON.stringify(process.env.WEB_LOGGER_LOG_LEVEL || ''),
+  },
+});
+```
+
+**webpack/Rspack define 예시**
+```js
+// webpack.config.js
+const webpack = require('webpack');
+
+module.exports = {
+  plugins: [
+    new webpack.DefinePlugin({
+      __DEV__: JSON.stringify(process.env.NODE_ENV !== 'production'),
+      __NODE_ENV__: JSON.stringify(process.env.NODE_ENV || 'development'),
+      __INITIAL_LOG_LEVEL__: JSON.stringify(process.env.WEB_LOGGER_LOG_LEVEL || ''),
+      'process.env.NODE_ENV': JSON.stringify(process.env.NODE_ENV || 'development'),
+      'process.env.WEB_LOGGER_LOG_LEVEL': JSON.stringify(process.env.WEB_LOGGER_LOG_LEVEL || ''),
+    }),
+  ],
+};
+```
 
 ### 5. Console API 호환성
 
@@ -276,35 +429,25 @@ if (typeof window !== 'undefined') {
 
 로그 레벨은 다음 우선순위로 결정됩니다:
 
-1. 런타임 전역 변수 (최우선, 즉시 반영)
-```javascript
-// 브라우저 환경
-window.__WEB_LOGGER_LOG_LEVEL__ = 'debug';
-
-// Node.js/SSR 환경
-globalThis.__WEB_LOGGER_LOG_LEVEL__ = 'debug';
+1. 빌드 타임 환경 변수 (최우선, 빌드 시 주입)
+```bash
+WEB_LOGGER_LOG_LEVEL=debug npm run build
 ```
-모든 WebLogger 인스턴스에 즉시 반영됩니다.
+빌드 타임에 상수로 주입되어 Tree Shaking 최적화에 활용됩니다.
 
-2. 빌드 타임 상수 (선택적, 빌드 시 주입)
-```typescript
-// 번들러 설정 (tsup, webpack, vite 등)
-define: {
-  __INITIAL_LOG_LEVEL__: JSON.stringify('warn')
-}
-```
-빌드 시점에 초기 로그 레벨을 설정하는데 사용됩니다.
-
-3. 런타임 환경 변수
+2. 런타임 환경 변수 (fallback)
 ```bash
 WEB_LOGGER_LOG_LEVEL=debug npm run dev
 ```
-전역 변수와 빌드 타임 상수가 설정되지 않은 경우 사용됩니다.
+빌드 타임 상수가 없는 경우 사용됩니다.
 
-4. 개발 모드 감지
-- NODE_ENV를 통해 자동으로 개발 환경을 감지합니다
+3. 전역 변수 (런타임, 즉시 반영)
+```javascript
+window.__WEB_LOGGER_LOG_LEVEL__ = 'debug';
+```
+모든 WebLogger 인스턴스에 즉시 반영됩니다.
 
-5. 기본값
+4. 기본값
 - 개발 환경: `debug` (모든 로그 출력)
 - 프로덕션 환경: `warn` (warn, error만 출력)
 
