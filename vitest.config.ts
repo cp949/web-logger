@@ -4,6 +4,13 @@ export default defineConfig({
   test: {
     environment: 'jsdom',
     globals: true,
+    pool: 'vmThreads',
+    // environmentMatchGlobs는 Vitest에 존재하지만 타입 정의가 아직 업데이트되지 않음
+    // @ts-expect-error - Vitest 4.0에서 지원하지만 타입 정의 누락
+    environmentMatchGlobs: [
+      ['**/ssr.test.ts', 'node'],
+      ['**/ssr.*.test.ts', 'node'],
+    ],
     coverage: {
       provider: 'v8',
       reporter: ['text', 'json', 'html'],

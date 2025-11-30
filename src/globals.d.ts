@@ -1,8 +1,22 @@
 /**
- * 빌드 타임 상수 타입 선언
- * tsup의 define 옵션으로 주입됨
+ * 빌드 타임 상수 타입 선언 (tsup define)
  */
-declare const __DEV__: boolean;
-declare const __NODE_ENV__: string;
-declare const __INITIAL_LOG_LEVEL__: string;
+import type { LogLevel } from './WebLogger';
 
+declare global {
+  const __DEV__: boolean;
+  const __NODE_ENV__: 'development' | 'production' | 'test';
+  const __INITIAL_LOG_LEVEL__: LogLevel | '';
+
+  var __WEB_LOGGER_LOG_LEVEL__: LogLevel | undefined;
+
+  interface Window {
+    __WEB_LOGGER_LOG_LEVEL__?: LogLevel;
+  }
+
+  interface GlobalThis {
+    __WEB_LOGGER_LOG_LEVEL__?: LogLevel;
+  }
+}
+
+export {};

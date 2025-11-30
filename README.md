@@ -24,6 +24,7 @@ A production-optimized web logging library. Provides rich debugging information 
 - Conditional logging: Log level check performed first to prevent unnecessary processing
 - Regex timeout: Execution time limit to prevent ReDoS attacks
 - ESM/CJS dual package: Supports all environments
+- SSR/CSR compatibility: Works seamlessly in both server-side rendering and client-side environments
 
 ### 🎨 Developer Experience
 - Colorful console output: Color-coded by log level
@@ -155,6 +156,56 @@ console.log(logger.isEnabled); // true
 // Multiple parameters supported (same as console API)
 logger.debug('User data:', userData, requestInfo);
 logger.error('Failed to fetch:', error, { endpoint, status });
+```
+
+## 🌍 SSR Support
+
+This library fully supports Server-Side Rendering (SSR) environments like Next.js, Nuxt, and other frameworks.
+
+### How It Works
+
+The library automatically detects the environment and uses the appropriate global object:
+- **Browser (CSR)**: Uses `window.__WEB_LOGGER_LOG_LEVEL__`
+- **Server (SSR)**: Uses `globalThis.__WEB_LOGGER_LOG_LEVEL__`
+
+### Key Features for SSR
+
+1. **No Runtime Errors**: Works without throwing errors in Node.js environments
+2. **Shared Log Level**: Log levels are shared across all instances via globalThis
+3. **Same Security Policies**: Sensitive data masking works identically on server and client
+4. **Zero Configuration**: No special setup required for SSR frameworks
+
+### Usage in SSR Frameworks
+
+```typescript
+// Works in both server and client without any special configuration
+import { logDebug, logInfo, logWarn, logError } from '@cp949/web-logger';
+
+// Next.js page or API route
+export default function Page() {
+  logDebug('Server-side debug message'); // Works on server
+  logInfo('Page rendered'); // Works on both server and client
+
+  return <div>Hello World</div>;
+}
+
+// API route
+export async function GET() {
+  logDebug('API route called'); // Works in Node.js
+  return Response.json({ message: 'Hello' });
+}
+```
+
+### Dynamic Import (Optional)
+
+For complete control over when the logger loads:
+
+```typescript
+// Client-only logging
+if (typeof window !== 'undefined') {
+  const { logDebug } = await import('@cp949/web-logger');
+  logDebug('Client-side only message');
+}
 ```
 
 ## 🔧 Configuration
@@ -399,6 +450,14 @@ Bug reports and feature suggestions are welcome!
 5. Open a Pull Request
 
 ## 🏷️ Version History
+
+### v1.0.1 (2024-12-01)
+- Added full SSR/CSR compatibility for Next.js and other frameworks
+- Uses globalThis for server environments, window for browser
+- No runtime errors in Node.js environments
+- Shared log level across all instances via globalThis
+- Enhanced type declarations for global variables
+- Added SSR-specific test cases
 
 ### v1.0.0 (2024-12-01)
 - Initial release

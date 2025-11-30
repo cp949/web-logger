@@ -1,3 +1,5 @@
+import { isDevelopment } from './utils/environment';
+
 /**
  * Web Environment Conditional Logger
  *
@@ -53,27 +55,6 @@ const handleError = (error: unknown, context: string): void => {
     console.warn(`[WebLogger] ${context}:`, error);
   }
   // 프로덕션에서는 조용히 실패 (에러 로깅만)
-};
-
-// 개발 모드 감지
-const isDevelopment = (): boolean => {
-  // 1. 빌드 타임 상수 우선 (Tree Shaking 최적화)
-  // @ts-ignore - 빌드 타임에 주입되는 전역 상수
-  if (typeof __DEV__ !== 'undefined') {
-    // @ts-ignore
-    return __DEV__ === true;
-  }
-
-  // 2. Node.js 환경 (빌드 타임 상수가 없는 경우 fallback)
-  if (typeof process !== 'undefined' && process.env) {
-    // @ts-ignore - 빌드 타임에 주입되는 전역 상수
-    const nodeEnv = typeof __NODE_ENV__ !== 'undefined' ? __NODE_ENV__ : process.env['NODE_ENV'];
-    return nodeEnv === 'development';
-  }
-
-
-  // 기본값: 프로덕션 모드
-  return false;
 };
 
 // 로그 레벨 타입
@@ -175,7 +156,7 @@ class SensitiveKeysManager {
   ];
 
   private constructor() {
-    this.sensitiveKeys = new Set(this.defaultKeys);
+    this.sensitiveKeys = new Set(this.defaultKeys.map((key) => key.toLowerCase()));
   }
 
   static getInstance(): SensitiveKeysManager {
@@ -217,7 +198,7 @@ class SensitiveKeysManager {
    * 기본 키 목록으로 초기화
    */
   reset(): void {
-    this.sensitiveKeys = new Set(this.defaultKeys);
+    this.sensitiveKeys = new Set(this.defaultKeys.map((key) => key.toLowerCase()));
   }
 
   /**
@@ -259,9 +240,7 @@ class LogLevelManager {
    */
   getCurrentLogLevel(): LogLevel {
     // 1. 빌드 타임 상수 우선 (Tree Shaking 최적화)
-    // @ts-ignore - 빌드 타임에 주입되는 전역 상수
     if (typeof __INITIAL_LOG_LEVEL__ !== 'undefined' && __INITIAL_LOG_LEVEL__) {
-      // @ts-ignore
       const envLevel = __INITIAL_LOG_LEVEL__ as LogLevel;
       if (isValidLogLevel(envLevel)) {
         return envLevel;
@@ -274,6 +253,12 @@ class LogLevelManager {
       if (isValidLogLevel(envLevel)) {
         return envLevel;
       }
+    }
+
+    // 3. globalThis (SSR/Node 전역)
+    const globalLevel = globalThis.__WEB_LOGGER_LOG_LEVEL__;
+    if (isValidLogLevel(globalLevel)) {
+      return globalLevel;
     }
 
     // 3. 브라우저 전역 변수 (런타임 제어, 디버깅용)
@@ -315,6 +300,9 @@ class LogLevelManager {
       handleError(error, '잘못된 로그 레벨 설정');
       return;
     }
+
+    // SSR/Node 환경 전역에도 저장
+    globalThis.__WEB_LOGGER_LOG_LEVEL__ = level;
 
     if (typeof window !== 'undefined') {
       // 전역 변수에 저장 (현재 세션용, 즉시 반영)
