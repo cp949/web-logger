@@ -436,6 +436,46 @@ function sanitizeLogData(
     };
   }
 
+  // Date 객체 처리
+  if (data instanceof Date) {
+    const dateString = data.toISOString();
+    return sanitizeLogData(dateString, depth + 1, visited);
+  }
+
+  // Map 객체 처리
+  if (data instanceof Map) {
+    const sanitized = new Map();
+    for (const [key, value] of data.entries()) {
+      const sanitizedKey = typeof key === 'string' && sensitiveKeysManager.isSensitive(key)
+        ? '[REDACTED]'
+        : sanitizeLogData(key, depth + 1, visited);
+      sanitized.set(
+        sanitizedKey,
+        sanitizeLogData(value, depth + 1, visited)
+      );
+    }
+    return sanitized;
+  }
+
+  // Set 객체 처리
+  if (data instanceof Set) {
+    const sanitized = new Set();
+    for (const item of data.values()) {
+      sanitized.add(sanitizeLogData(item, depth + 1, visited));
+    }
+    return sanitized;
+  }
+
+  // TypedArray 처리 (Uint8Array, Int32Array 등)
+  if (ArrayBuffer.isView(data) && !(data instanceof DataView)) {
+    return '[BINARY_DATA]';
+  }
+
+  // Buffer 처리 (Node.js)
+  if (typeof Buffer !== 'undefined' && Buffer.isBuffer(data)) {
+    return '[BUFFER]';
+  }
+
   // 순환 참조 방지
   if (typeof data === 'object' && data !== null) {
     if (visited.has(data as object)) {
@@ -537,9 +577,14 @@ export class WebLogger {
       optionalParams.length === 1 &&
       typeof optionalParams[0] === 'object' &&
       !Array.isArray(optionalParams[0]) &&
-      optionalParams[0] !== null
+      optionalParams[0] !== null &&
+      !(optionalParams[0] instanceof Map) &&
+      !(optionalParams[0] instanceof Set) &&
+      !(optionalParams[0] instanceof Date) &&
+      !(ArrayBuffer.isView(optionalParams[0]))
     ) {
       // 메시지 + 메타데이터 객체인 경우 (기존 호환성 유지)
+      // Map, Set, Date, TypedArray는 제외
       this.logWithStyle(
         level,
         String(sanitizedMessage),
@@ -707,8 +752,11 @@ export class WebLogger {
     }
 
     // 메타데이터가 있으면 추가 출력
-    if (metadata && Object.keys(metadata).length > 0) {
-      if (typeof metadata === 'object' && !Array.isArray(metadata) && console.table) {
+    if (metadata) {
+      // Map, Set 등은 console.log로 출력
+      if (metadata instanceof Map || metadata instanceof Set) {
+        console.log(metadata);
+      } else if (typeof metadata === 'object' && !Array.isArray(metadata) && console.table && Object.keys(metadata).length > 0) {
         console.table(metadata);
       } else {
         console.log(metadata);
