@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { WebLogger } from './WebLogger';
-import { convertToConsoleLogger } from './logger';
+import { convertToConsoleLogger, getLogLevel, setLogLevel } from './logger';
 
 describe('convertToConsoleLogger', () => {
   let logger: WebLogger;
@@ -29,7 +29,8 @@ describe('convertToConsoleLogger', () => {
 
     // window.__WEB_LOGGER_LOG_LEVEL__ 초기화
     if (typeof window !== 'undefined') {
-      delete (window as any).__WEB_LOGGER_LOG_LEVEL__;
+      // @ts-expect-error: 테스트를 위해 의도적으로 속성 삭제
+      delete window.__WEB_LOGGER_LOG_LEVEL__;
     }
 
     localStorageMock.clear();
@@ -51,6 +52,11 @@ describe('convertToConsoleLogger', () => {
       time: vi.spyOn(console, 'time').mockImplementation(() => {}),
       timeEnd: vi.spyOn(console, 'timeEnd').mockImplementation(() => {}),
     };
+
+    // 일부 메서드는 선택적으로 모킹
+    if (console.profile) vi.spyOn(console, 'profile').mockImplementation(() => {});
+    if (console.profileEnd) vi.spyOn(console, 'profileEnd').mockImplementation(() => {});
+    if (console.timeStamp) vi.spyOn(console, 'timeStamp').mockImplementation(() => {});
   });
 
   afterEach(() => {
@@ -58,7 +64,8 @@ describe('convertToConsoleLogger', () => {
       logger.setLogLevel('debug');
     }
     if (typeof window !== 'undefined') {
-      delete (window as any).__WEB_LOGGER_LOG_LEVEL__;
+      // @ts-expect-error: 테스트를 위해 의도적으로 속성 삭제
+      delete window.__WEB_LOGGER_LOG_LEVEL__;
     }
     if (typeof localStorage !== 'undefined') {
       localStorage.clear();
@@ -204,6 +211,55 @@ describe('convertToConsoleLogger', () => {
     expect(consoleSpy.warn).not.toHaveBeenCalled();
     // error는 항상 호출되어야 함
     expect(consoleSpy.error).toHaveBeenCalled();
+  });
+
+  describe('getLogLevel', () => {
+    it('should return current log level', () => {
+      logger.setLogLevel('warn');
+      expect(getLogLevel()).toBe('warn');
+      
+      logger.setLogLevel('debug');
+      expect(getLogLevel()).toBe('debug');
+    });
+  });
+
+  describe('setLogLevel from logger module', () => {
+    it('should set log level via setLogLevel function', () => {
+      setLogLevel('error');
+      expect(getLogLevel()).toBe('error');
+      
+      setLogLevel('info');
+      expect(getLogLevel()).toBe('info');
+    });
+  });
+
+  describe('convertToConsoleLogger - additional methods', () => {
+    it('should call console.profile when available', () => {
+      const consoleCompatible = convertToConsoleLogger(logger);
+      
+      if (console.profile) {
+        consoleCompatible.profile!('TestProfile');
+        expect(vi.mocked(console.profile)).toHaveBeenCalledWith('TestProfile');
+      }
+    });
+
+    it('should call console.profileEnd when available', () => {
+      const consoleCompatible = convertToConsoleLogger(logger);
+      
+      if (console.profileEnd) {
+        consoleCompatible.profileEnd!('TestProfile');
+        expect(vi.mocked(console.profileEnd)).toHaveBeenCalledWith('TestProfile');
+      }
+    });
+
+    it('should call console.timeStamp when available', () => {
+      const consoleCompatible = convertToConsoleLogger(logger);
+      
+      if (console.timeStamp) {
+        consoleCompatible.timeStamp!('TestLabel');
+        expect(vi.mocked(console.timeStamp)).toHaveBeenCalledWith('TestLabel');
+      }
+    });
   });
 });
 

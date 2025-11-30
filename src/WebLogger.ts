@@ -57,7 +57,15 @@ const handleError = (error: unknown, context: string): void => {
   // 프로덕션에서는 조용히 실패 (에러 로깅만)
 };
 
-// 로그 레벨 타입
+/**
+ * 로그 레벨 타입
+ * 
+ * - `debug`: 모든 로그 출력 (개발 환경 기본값)
+ * - `info`: info, warn, error 출력
+ * - `warn`: warn, error만 출력 (프로덕션 기본값)
+ * - `error`: error만 출력
+ * - `none`: 모든 로그 비활성화
+ */
 export type LogLevel = 'debug' | 'info' | 'warn' | 'error' | 'none';
 
 // 로그 레벨별 설정
@@ -89,12 +97,26 @@ const LOG_LEVEL_CONFIGS: Record<LogLevel, LogLevelConfig> = {
   }
 };
 
-// 메타데이터 타입
+/**
+ * 로그 메타데이터 타입
+ * 
+ * 객체 형태의 추가 정보를 로그와 함께 전달할 때 사용합니다.
+ * `console.table`을 사용하여 구조화된 형태로 표시됩니다.
+ * 
+ * @example
+ * ```typescript
+ * logger.info('User login', { userId: 123, email: 'user@example.com' });
+ * ```
+ */
 export interface LogMetadata {
   [key: string]: unknown;
 }
 
-// 로그 가능한 값 타입
+/**
+ * 로그 가능한 값 타입
+ * 
+ * WebLogger가 처리할 수 있는 모든 데이터 타입을 포함합니다.
+ */
 export type LogValue = string | number | boolean | null | undefined | Error | LogMetadata | LogValue[];
 
 // Window 인터페이스 확장
@@ -466,14 +488,14 @@ function sanitizeLogData(
     return sanitized;
   }
 
+  // Buffer 처리 (Node.js) - TypedArray 체크보다 먼저 실행
+  if (typeof Buffer !== 'undefined' && Buffer.isBuffer(data)) {
+    return '[BUFFER]';
+  }
+
   // TypedArray 처리 (Uint8Array, Int32Array 등)
   if (ArrayBuffer.isView(data) && !(data instanceof DataView)) {
     return '[BINARY_DATA]';
-  }
-
-  // Buffer 처리 (Node.js)
-  if (typeof Buffer !== 'undefined' && Buffer.isBuffer(data)) {
-    return '[BUFFER]';
   }
 
   // 순환 참조 방지
@@ -525,11 +547,36 @@ function sanitizeLogData(
   return data;
 }
 
-// 조건부 로거 클래스
+/**
+ * WebLogger 클래스
+ * 
+ * 프로덕션 환경에 최적화된 웹 로깅 라이브러리의 메인 클래스입니다.
+ * 자동 민감 정보 필터링, 로그 레벨 제어, SSR/CSR 호환 등의 기능을 제공합니다.
+ * 
+ * @example
+ * ```typescript
+ * const logger = new WebLogger('[MyApp]');
+ * logger.debug('Debug message');
+ * logger.info('User data:', { userId: 123 });
+ * logger.warn('Warning message');
+ * logger.error('Error occurred:', error);
+ * ```
+ */
 export class WebLogger {
   private readonly prefix: string;
   private readonly logLevelManager: LogLevelManager;
 
+  /**
+   * WebLogger 인스턴스 생성
+   * 
+   * @param prefix 로그 메시지 앞에 붙을 접두사 (기본값: '[XIO]')
+   * 
+   * @example
+   * ```typescript
+   * const logger = new WebLogger('[MyApp]');
+   * logger.info('Message'); // [MyApp] [12:34:56] INFO Message
+   * ```
+   */
   constructor(prefix: string = '[XIO]') {
     this.prefix = prefix;
     this.logLevelManager = logLevelManager;
@@ -537,7 +584,17 @@ export class WebLogger {
 
   /**
    * 현재 로그 레벨 가져오기 (동적 조회)
-   * setLogLevel 호출 시 즉시 반영됨
+   * 
+   * `setLogLevel()` 호출 시 즉시 반영됩니다.
+   * 모든 WebLogger 인스턴스가 동일한 전역 로그 레벨을 공유합니다.
+   * 
+   * @returns 현재 로그 레벨
+   * 
+   * @example
+   * ```typescript
+   * logger.setLogLevel('debug');
+   * console.log(logger.currentLogLevel); // 'debug'
+   * ```
    */
   get currentLogLevel(): LogLevel {
     return this.logLevelManager.getCurrentLogLevel();
@@ -545,8 +602,17 @@ export class WebLogger {
 
   /**
    * 로그 레벨 설정 (런타임 제어)
-   * 프로덕션에서 디버깅 시 사용
-   * 모든 WebLogger 인스턴스에 즉시 반영됨
+   * 
+   * 프로덕션에서 디버깅 시 사용할 수 있습니다.
+   * 모든 WebLogger 인스턴스에 즉시 반영되며, `globalThis`를 통해 SSR/CSR 환경에서도 동기화됩니다.
+   * 
+   * @param level 설정할 로그 레벨
+   * 
+   * @example
+   * ```typescript
+   * logger.setLogLevel('warn'); // warn과 error만 출력
+   * logger.setLogLevel('debug'); // 모든 로그 출력
+   * ```
    */
   setLogLevel(level: LogLevel): void {
     this.logLevelManager.setLogLevel(level);
@@ -646,6 +712,17 @@ export class WebLogger {
 
   /**
    * 일반 로깅 (console.log 호환)
+   * 
+   * `console.log()`와 동일한 시그니처를 제공합니다.
+   * 로그 레벨이 `none`인 경우 출력되지 않습니다.
+   * 
+   * @param args 로그할 인자들 (여러 개 가능)
+   * 
+   * @example
+   * ```typescript
+   * logger.log('Simple message');
+   * logger.log('Multiple', 'arguments', { data: 'value' });
+   * ```
    */
   log(...args: unknown[]): void {
     if (this.currentLogLevel === 'none') return;
@@ -660,8 +737,19 @@ export class WebLogger {
   /**
    * 그룹화된 로깅 (복잡한 데이터용)
    * 
+   * 관련된 로그들을 그룹으로 묶어 구조화된 형태로 표시합니다.
+   * 메타데이터가 제공되면 `console.table`을 사용하여 표 형식으로 출력됩니다.
+   * `groupEnd()`를 호출하여 그룹을 닫아야 합니다.
+   * 
    * @param title 그룹 제목
-   * @param data 표시할 메타데이터 (선택적)
+   * @param data 표시할 메타데이터 (선택적, 객체 형태)
+   * 
+   * @example
+   * ```typescript
+   * logger.group('User Information', { id: 123, name: 'John' });
+   * logger.debug('Additional details...');
+   * logger.groupEnd();
+   * ```
    */
   group(title: string, data?: LogMetadata): void {
     if (this.currentLogLevel === 'none') return;
@@ -678,7 +766,15 @@ export class WebLogger {
 
   /**
    * 그룹 종료
-   * group()으로 시작한 그룹을 닫습니다.
+   * 
+   * `group()`으로 시작한 그룹을 닫습니다.
+   * 
+   * @example
+   * ```typescript
+   * logger.group('User Information');
+   * logger.debug('Details...');
+   * logger.groupEnd(); // 그룹 닫기
+   * ```
    */
   groupEnd(): void {
     if (this.currentLogLevel === 'none') return;
@@ -688,7 +784,17 @@ export class WebLogger {
   /**
    * 성능 측정 시작
    * 
-   * @param label 측정할 작업의 레이블
+   * 작업의 실행 시간을 측정하기 시작합니다.
+   * `timeEnd()`를 호출하여 측정을 종료하고 경과 시간을 출력합니다.
+   * 
+   * @param label 측정할 작업의 레이블 (고유해야 함)
+   * 
+   * @example
+   * ```typescript
+   * logger.time('API call');
+   * await fetchData();
+   * logger.timeEnd('API call'); // API call: 123ms
+   * ```
    */
   time(label: string): void {
     if (this.currentLogLevel === 'none') return;
@@ -697,9 +803,17 @@ export class WebLogger {
 
   /**
    * 성능 측정 종료
-   * time()으로 시작한 측정을 종료하고 경과 시간을 출력합니다.
    * 
-   * @param label time()에서 사용한 레이블과 동일해야 함
+   * `time()`으로 시작한 측정을 종료하고 경과 시간을 출력합니다.
+   * 
+   * @param label `time()`에서 사용한 레이블과 동일해야 함
+   * 
+   * @example
+   * ```typescript
+   * logger.time('API call');
+   * await fetchData();
+   * logger.timeEnd('API call'); // [APP] API call: 123ms
+   * ```
    */
   timeEnd(label: string): void {
     if (this.currentLogLevel === 'none') return;
@@ -708,6 +822,17 @@ export class WebLogger {
 
   /**
    * 로깅 활성화 여부 확인
+   * 
+   * 로그 레벨이 `none`이 아닌 경우 `true`를 반환합니다.
+   * 
+   * @returns 로깅이 활성화되어 있으면 `true`, 비활성화되어 있으면 `false`
+   * 
+   * @example
+   * ```typescript
+   * if (logger.isEnabled) {
+   *   logger.debug('Debug message');
+   * }
+   * ```
    */
   get isEnabled(): boolean {
     return this.currentLogLevel !== 'none';
@@ -783,7 +908,20 @@ export class WebLogger {
   }
 }
 
-// 기본 로거 인스턴스 (즉시 초기화로 레이스 컨디션 방지)
+/**
+ * 기본 WebLogger 인스턴스
+ * 
+ * 편의 함수들(`logDebug`, `logInfo` 등)이 사용하는 기본 인스턴스입니다.
+ * 즉시 초기화되어 레이스 컨디션을 방지합니다.
+ * 
+ * @example
+ * ```typescript
+ * import { webLogger } from '@cp949/web-logger';
+ * 
+ * webLogger.setLogLevel('debug');
+ * webLogger.info('Message');
+ * ```
+ */
 export const webLogger = new WebLogger('[APP]');
 
 /**

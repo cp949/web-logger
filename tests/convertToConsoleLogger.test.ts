@@ -19,10 +19,18 @@ describe('convertToConsoleLogger', () => {
 
     // console 메서드들을 모킹
     vi.spyOn(console, 'log').mockImplementation(() => {});
+    vi.spyOn(console, 'debug').mockImplementation(() => {});
+    vi.spyOn(console, 'info').mockImplementation(() => {});
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
+    vi.spyOn(console, 'error').mockImplementation(() => {});
     vi.spyOn(console, 'table').mockImplementation(() => {});
     vi.spyOn(console, 'clear').mockImplementation(() => {});
     vi.spyOn(console, 'trace').mockImplementation(() => {});
     vi.spyOn(console, 'dir').mockImplementation(() => {});
+    vi.spyOn(console, 'group').mockImplementation(() => {});
+    vi.spyOn(console, 'groupEnd').mockImplementation(() => {});
+    vi.spyOn(console, 'time').mockImplementation(() => {});
+    vi.spyOn(console, 'timeEnd').mockImplementation(() => {});
 
     // 일부 메서드는 Node.js에서 사용 불가능할 수 있음
     if (console.dirxml) vi.spyOn(console, 'dirxml').mockImplementation(() => {});
@@ -61,9 +69,13 @@ describe('convertToConsoleLogger', () => {
       const obj = { test: 'value' };
       consoleCompatible.debug!('Debug', obj, 123);
 
-      const logCalls = vi.mocked(console.log).mock.calls;
-      expect(logCalls.length).toBeGreaterThan(0);
-      const lastCall = logCalls[logCalls.length - 1];
+      // debug는 console.debug 또는 console.log를 사용
+      const allCalls = [
+        ...vi.mocked(console.debug).mock.calls,
+        ...vi.mocked(console.log).mock.calls,
+      ];
+      expect(allCalls.length).toBeGreaterThan(0);
+      const lastCall = allCalls[allCalls.length - 1];
       expect(lastCall.some(arg => typeof arg === 'string' && arg.includes('Debug'))).toBe(true);
     });
 
@@ -87,26 +99,30 @@ describe('convertToConsoleLogger', () => {
     it('should handle warn with no arguments', () => {
       consoleCompatible.warn!();
 
-      const logCalls = vi.mocked(console.log).mock.calls;
-      expect(logCalls.length).toBeGreaterThan(0);
-      const lastCall = logCalls[logCalls.length - 1];
+      // warn은 console.warn을 사용
+      const warnCalls = vi.mocked(console.warn).mock.calls;
+      expect(warnCalls.length).toBeGreaterThan(0);
+      const lastCall = warnCalls[warnCalls.length - 1];
       expect(lastCall.some(arg => typeof arg === 'string' && arg.includes('[TEST]'))).toBe(true);
     });
 
     it('should handle warn with arguments', () => {
       consoleCompatible.warn!('Warning', 'additional info');
 
-      const logCalls = vi.mocked(console.log).mock.calls;
-      const lastCall = logCalls[logCalls.length - 1];
+      // warn은 console.warn을 사용
+      const warnCalls = vi.mocked(console.warn).mock.calls;
+      expect(warnCalls.length).toBeGreaterThan(0);
+      const lastCall = warnCalls[warnCalls.length - 1];
       expect(lastCall.some(arg => typeof arg === 'string' && arg.includes('Warning'))).toBe(true);
     });
 
     it('should handle error with no arguments', () => {
       consoleCompatible.error!();
 
-      const logCalls = vi.mocked(console.log).mock.calls;
-      expect(logCalls.length).toBeGreaterThan(0);
-      const lastCall = logCalls[logCalls.length - 1];
+      // error는 console.error를 사용
+      const errorCalls = vi.mocked(console.error).mock.calls;
+      expect(errorCalls.length).toBeGreaterThan(0);
+      const lastCall = errorCalls[errorCalls.length - 1];
       expect(lastCall.some(arg => typeof arg === 'string' && arg.includes('[TEST]'))).toBe(true);
     });
 
@@ -114,8 +130,10 @@ describe('convertToConsoleLogger', () => {
       const error = new Error('Test error');
       consoleCompatible.error!('Error occurred', error);
 
-      const logCalls = vi.mocked(console.log).mock.calls;
-      const lastCall = logCalls[logCalls.length - 1];
+      // error는 console.error를 사용
+      const errorCalls = vi.mocked(console.error).mock.calls;
+      expect(errorCalls.length).toBeGreaterThan(0);
+      const lastCall = errorCalls[errorCalls.length - 1];
       expect(lastCall.some(arg => typeof arg === 'string' && arg.includes('Error occurred'))).toBe(true);
     });
 
@@ -132,23 +150,28 @@ describe('convertToConsoleLogger', () => {
     it('should handle group with no arguments', () => {
       consoleCompatible.group!();
 
-      const logCalls = vi.mocked(console.log).mock.calls;
-      expect(logCalls.length).toBeGreaterThan(0);
+      // group은 console.group을 사용
+      const groupCalls = vi.mocked(console.group).mock.calls;
+      expect(groupCalls.length).toBeGreaterThan(0);
     });
 
     it('should handle group with title only', () => {
       consoleCompatible.group!('Group Title');
 
-      const logCalls = vi.mocked(console.log).mock.calls;
-      const lastCall = logCalls[logCalls.length - 1];
+      // group은 console.group을 사용
+      const groupCalls = vi.mocked(console.group).mock.calls;
+      expect(groupCalls.length).toBeGreaterThan(0);
+      const lastCall = groupCalls[groupCalls.length - 1];
       expect(lastCall.some(arg => typeof arg === 'string' && arg.includes('Group Title'))).toBe(true);
     });
 
     it('should handle group with title and metadata', () => {
       consoleCompatible.group!('Group', { meta: 'data' });
 
-      const logCalls = vi.mocked(console.log).mock.calls;
-      const lastCall = logCalls[logCalls.length - 1];
+      // group은 console.group을 사용
+      const groupCalls = vi.mocked(console.group).mock.calls;
+      expect(groupCalls.length).toBeGreaterThan(0);
+      const lastCall = groupCalls[groupCalls.length - 1];
       expect(lastCall.some(arg => typeof arg === 'string' && arg.includes('Group'))).toBe(true);
 
       // metadata는 table로 출력됨
@@ -159,8 +182,10 @@ describe('convertToConsoleLogger', () => {
     it('should handle group with non-object second parameter', () => {
       consoleCompatible.group!('Group', 'string value', 123);
 
-      const logCalls = vi.mocked(console.log).mock.calls;
-      const lastCall = logCalls[logCalls.length - 1];
+      // group은 console.group을 사용
+      const groupCalls = vi.mocked(console.group).mock.calls;
+      expect(groupCalls.length).toBeGreaterThan(0);
+      const lastCall = groupCalls[groupCalls.length - 1];
       expect(lastCall.some(arg => typeof arg === 'string' && arg.includes('Group'))).toBe(true);
     });
 
@@ -168,25 +193,26 @@ describe('convertToConsoleLogger', () => {
       consoleCompatible.group!('Test Group');
       consoleCompatible.groupEnd!();
 
-      const logCalls = vi.mocked(console.log).mock.calls;
-      const groupEndCall = logCalls.find(call =>
-        call.some(arg => typeof arg === 'string' && arg.includes('└─'))
-      );
-      expect(groupEndCall).toBeTruthy();
+      // groupEnd는 console.groupEnd를 사용
+      const groupEndCalls = vi.mocked(console.groupEnd).mock.calls;
+      expect(groupEndCalls.length).toBeGreaterThan(0);
     });
 
     it('should handle groupCollapsed with no arguments', () => {
       consoleCompatible.groupCollapsed!();
 
-      const logCalls = vi.mocked(console.log).mock.calls;
-      expect(logCalls.length).toBeGreaterThan(0);
+      // groupCollapsed는 group으로 대체되므로 console.group을 사용
+      const groupCalls = vi.mocked(console.group).mock.calls;
+      expect(groupCalls.length).toBeGreaterThan(0);
     });
 
     it('should handle groupCollapsed with arguments', () => {
       consoleCompatible.groupCollapsed!('Collapsed Group', { data: 'test' });
 
-      const logCalls = vi.mocked(console.log).mock.calls;
-      const lastCall = logCalls[logCalls.length - 1];
+      // groupCollapsed는 group으로 대체되므로 console.group을 사용
+      const groupCalls = vi.mocked(console.group).mock.calls;
+      expect(groupCalls.length).toBeGreaterThan(0);
+      const lastCall = groupCalls[groupCalls.length - 1];
       expect(lastCall.some(arg => typeof arg === 'string' && arg.includes('Collapsed Group'))).toBe(true);
     });
   });
@@ -203,11 +229,11 @@ describe('convertToConsoleLogger', () => {
 
       consoleCompatible.timeEnd!('Timer');
 
-      const logCalls = vi.mocked(console.log).mock.calls;
-      const timeEndCall = logCalls.find(call =>
-        call.some(arg => typeof arg === 'string' && arg.includes('Timer') && arg.includes('ms'))
-      );
-      expect(timeEndCall).toBeTruthy();
+      // timeEnd는 console.timeEnd를 사용
+      const timeEndCalls = vi.mocked(console.timeEnd).mock.calls;
+      expect(timeEndCalls.length).toBeGreaterThan(0);
+      const timeEndCall = timeEndCalls[timeEndCalls.length - 1];
+      expect(timeEndCall[0]).toContain('Timer');
     });
 
     it('should handle timeLog', () => {
@@ -339,7 +365,8 @@ describe('convertToConsoleLogger', () => {
     it('should handle missing console methods gracefully', () => {
       // console 메서드를 undefined로 설정하여 테스트
       const originalTimeLog = console.timeLog;
-      (console as any).timeLog = undefined;
+      // @ts-expect-error: 테스트를 위해 의도적으로 undefined 설정
+      console.timeLog = undefined;
 
       expect(() => {
         consoleCompatible.timeLog!('Label');
@@ -352,7 +379,8 @@ describe('convertToConsoleLogger', () => {
     it('should handle undefined console gracefully', () => {
       // Node.js 환경에서는 console이 항상 있으므로 이 테스트는 실제로 실행되지 않을 수 있음
       const globalConsole = globalThis.console;
-      (globalThis as any).console = undefined;
+      // @ts-expect-error: 테스트를 위해 의도적으로 undefined 설정
+      globalThis.console = undefined;
 
       expect(() => {
         consoleCompatible.clear!();
@@ -387,18 +415,25 @@ describe('convertToConsoleLogger', () => {
       webLogger.setLogLevel('warn');
 
       vi.mocked(console.log).mockClear();
+      vi.mocked(console.debug).mockClear();
+      vi.mocked(console.info).mockClear();
+      vi.mocked(console.warn).mockClear();
+      vi.mocked(console.error).mockClear();
 
       consoleCompatible.debug!('Debug message');
       consoleCompatible.info!('Info message');
 
       // debug와 info는 출력되지 않아야 함
       expect(vi.mocked(console.log).mock.calls.length).toBe(0);
+      expect(vi.mocked(console.debug).mock.calls.length).toBe(0);
+      expect(vi.mocked(console.info).mock.calls.length).toBe(0);
 
       consoleCompatible.warn!('Warning message');
       consoleCompatible.error!('Error message');
 
-      // warn과 error는 출력되어야 함
-      expect(vi.mocked(console.log).mock.calls.length).toBeGreaterThan(0);
+      // warn과 error는 출력되어야 함 (각각의 console 메서드 사용)
+      expect(vi.mocked(console.warn).mock.calls.length).toBeGreaterThan(0);
+      expect(vi.mocked(console.error).mock.calls.length).toBeGreaterThan(0);
     });
   });
 });

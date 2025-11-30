@@ -5,7 +5,9 @@ import { WebLogger } from '../src/WebLogger';
 
 describe('Masking Priority - Key-based vs Pattern-based', () => {
   let logger: WebLogger;
-  let consoleSpy: any;
+  let consoleSpy: {
+    log: ReturnType<typeof vi.spyOn<typeof console, 'log'>>;
+  };
 
   beforeEach(() => {
     logger = new WebLogger('[TEST]');
@@ -29,7 +31,7 @@ describe('Masking Priority - Key-based vs Pattern-based', () => {
 
       logger.info('Key priority test', data);
 
-      const tableCall = (console.table as any).mock.calls[0];
+      const tableCall = vi.mocked(console.table).mock.calls[0];
       expect(tableCall).toBeTruthy();
 
       // 키 기반 마스킹이 우선 적용되어 [REDACTED]로 표시되어야 함
@@ -55,7 +57,7 @@ describe('Masking Priority - Key-based vs Pattern-based', () => {
 
       logger.info('Pattern masking test', data);
 
-      const tableCall = (console.table as any).mock.calls[0];
+      const tableCall = vi.mocked(console.table).mock.calls[0];
       expect(tableCall).toBeTruthy();
 
       // 키가 민감하지 않으므로 값의 패턴 마스킹이 적용되어야 함
@@ -76,7 +78,7 @@ describe('Masking Priority - Key-based vs Pattern-based', () => {
 
       logger.info('Key masking only test', data);
 
-      const tableCall = (console.table as any).mock.calls[0];
+      const tableCall = vi.mocked(console.table).mock.calls[0];
       expect(tableCall).toBeTruthy();
 
       // 키가 민감하면 값의 내용과 관계없이 [REDACTED]
@@ -106,7 +108,7 @@ describe('Masking Priority - Key-based vs Pattern-based', () => {
 
       logger.info('Nested masking test', data);
 
-      const tableCall = (console.table as any).mock.calls[0];
+      const tableCall = vi.mocked(console.table).mock.calls[0];
       expect(tableCall).toBeTruthy();
 
       // 중첩된 객체에서도 키 기반 마스킹이 우선
@@ -136,7 +138,7 @@ describe('Masking Priority - Key-based vs Pattern-based', () => {
 
       logger.info('Array masking test', data);
 
-      const tableCall = (console.table as any).mock.calls[0];
+      const tableCall = vi.mocked(console.table).mock.calls[0];
       expect(tableCall).toBeTruthy();
 
       // 'emails' 키는 민감한 키가 아니므로 배열 내용에 패턴 마스킹 적용
@@ -172,7 +174,7 @@ describe('Masking Priority - Key-based vs Pattern-based', () => {
 
       logger.info('Sensitive key array test', data);
 
-      const tableCall = (console.table as any).mock.calls[0];
+      const tableCall = vi.mocked(console.table).mock.calls[0];
       expect(tableCall).toBeTruthy();
 
       // 키가 민감하면 배열 전체가 [REDACTED]
@@ -191,7 +193,7 @@ describe('Masking Priority - Key-based vs Pattern-based', () => {
 
       logger.info('Multiple patterns test', data);
 
-      const tableCall = (console.table as any).mock.calls[0];
+      const tableCall = vi.mocked(console.table).mock.calls[0];
       expect(tableCall).toBeTruthy();
 
       // 여러 패턴이 순차적으로 적용되어야 함
@@ -223,7 +225,7 @@ describe('Masking Priority - Key-based vs Pattern-based', () => {
 
       logger.info('Case sensitivity test', data);
 
-      const tableCall = (console.table as any).mock.calls[0];
+      const tableCall = vi.mocked(console.table).mock.calls[0];
       expect(tableCall).toBeTruthy();
 
       // 대소문자 관계없이 민감한 키는 모두 마스킹되어야 함
@@ -254,7 +256,7 @@ describe('Masking Priority - Key-based vs Pattern-based', () => {
 
       logger.info('Edge case test', data);
 
-      const tableCall = (console.table as any).mock.calls[0];
+      const tableCall = vi.mocked(console.table).mock.calls[0];
       expect(tableCall).toBeTruthy();
 
       // 민감한 키는 값이 empty/null/undefined여도 마스킹
@@ -277,7 +279,7 @@ describe('Masking Priority - Key-based vs Pattern-based', () => {
 
       logger.info('Key name pattern test', data);
 
-      const tableCall = (console.table as any).mock.calls[0];
+      const tableCall = vi.mocked(console.table).mock.calls[0];
       expect(tableCall).toBeTruthy();
 
       // 키 이름에 특수문자가 있어도 민감한 키 판별은 기본 키워드 기준

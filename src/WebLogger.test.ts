@@ -33,7 +33,8 @@ describe('WebLogger', () => {
 
     // window.__WEB_LOGGER_LOG_LEVEL__ 초기화
     if (typeof window !== 'undefined') {
-      delete (window as any).__WEB_LOGGER_LOG_LEVEL__;
+      // @ts-expect-error: 테스트를 위해 의도적으로 속성 삭제
+      delete window.__WEB_LOGGER_LOG_LEVEL__;
     }
 
     // localStorage 초기화
@@ -63,7 +64,8 @@ describe('WebLogger', () => {
     }
     // window.__WEB_LOGGER_LOG_LEVEL__ 초기화
     if (typeof window !== 'undefined') {
-      delete (window as any).__WEB_LOGGER_LOG_LEVEL__;
+      // @ts-expect-error: 테스트를 위해 의도적으로 속성 삭제
+      delete window.__WEB_LOGGER_LOG_LEVEL__;
     }
     // localStorage 초기화
     if (typeof localStorage !== 'undefined') {
@@ -615,7 +617,8 @@ describe('WebLogger', () => {
 
       // window.__WEB_LOGGER_LOG_LEVEL__ 초기화 (프로덕션 기본값 사용)
       if (typeof window !== 'undefined') {
-        delete (window as any).__WEB_LOGGER_LOG_LEVEL__;
+        // @ts-expect-error: 테스트를 위해 의도적으로 속성 삭제
+        delete window.__WEB_LOGGER_LOG_LEVEL__;
       }
       if (typeof localStorage !== 'undefined') {
       }
@@ -658,7 +661,8 @@ describe('WebLogger', () => {
       // 하지만 실제로는 배열도 table로 표시될 수 있음
       // 이 테스트는 배열이 객체로 변환되어 table로 표시되는 것을 확인
       const arrayData = [1, 2, 3];
-      logger.group('Array data', arrayData as any);
+      // @ts-expect-error: 테스트를 위해 의도적으로 배열을 LogMetadata로 전달
+      logger.group('Array data', arrayData);
       logger.groupEnd();
 
       // group 메서드가 호출되었는지 확인
@@ -671,9 +675,116 @@ describe('WebLogger', () => {
       expect(consoleSpy.log).toHaveBeenCalled();
     });
 
+    it('스타일이 undefined인 경우 fallback으로 consoleFn을 사용해야 함', () => {
+      // warn 레벨은 스타일이 없으므로 fallback 경로를 사용
+      // 하지만 실제로는 style이 undefined가 아니므로, style이 false인 경우를 시뮬레이션
+      // logWithStyle에서 style이 없으면 else 블록으로 가서 fallback 사용
+      logger.warn('Warning message');
+      
+      const warnCalls = vi.mocked(console.warn).mock.calls;
+      expect(warnCalls.length).toBeGreaterThan(0);
+      const lastCall = warnCalls[warnCalls.length - 1];
+      expect(lastCall[0]).toContain('[TEST]');
+      expect(lastCall[0]).toContain('WARN');
+    });
+
+    it('logWithStyle에서 style이 없는 경우 fallback 경로를 사용해야 함', () => {
+      // error 레벨은 스타일이 없으므로 fallback 경로를 사용
+      logger.error('Error message');
+      
+      const errorCalls = vi.mocked(console.error).mock.calls;
+      expect(errorCalls.length).toBeGreaterThan(0);
+    });
+
+    it('원시 타입(숫자, 불린 등)은 sanitizeLogData에서 그대로 반환되어야 함', () => {
+      // 원시 타입은 객체도 문자열도 아니므로 마지막 return 문으로 처리됨
+      logger.info(123);
+      logger.info(true);
+      logger.info(null);
+      logger.info(undefined);
+      
+      const logCalls = [
+        ...vi.mocked(console.log).mock.calls,
+        ...vi.mocked(console.info).mock.calls,
+      ];
+      expect(logCalls.length).toBeGreaterThan(0);
+    });
+
+    it('metadata가 Map인 경우 console.log로 출력해야 함', () => {
+      const mapMetadata = new Map([['key', 'value']]);
+      logger.info('Message', mapMetadata);
+      
+      // Map metadata는 logWithStyle에서 별도로 console.log로 출력됨
+      const logCalls = [
+        ...vi.mocked(console.log).mock.calls,
+        ...vi.mocked(console.info).mock.calls,
+      ];
+      expect(logCalls.some((call: unknown[]) => 
+        call.some((arg: unknown) => arg instanceof Map)
+      )).toBe(true);
+    });
+
+    it('metadata가 Set인 경우 console.log로 출력해야 함', () => {
+      const setMetadata = new Set(['value1', 'value2']);
+      logger.info('Message', setMetadata);
+      
+      // Set metadata는 logWithStyle에서 별도로 console.log로 출력됨
+      const logCalls = [
+        ...vi.mocked(console.log).mock.calls,
+        ...vi.mocked(console.info).mock.calls,
+      ];
+      expect(logCalls.some((call: unknown[]) => 
+        call.some((arg: unknown) => arg instanceof Set)
+      )).toBe(true);
+    });
+
+    it('metadata가 빈 객체인 경우 console.log로 출력해야 함', () => {
+      logger.info('Message', {});
+      
+      const logCalls = vi.mocked(console.log).mock.calls;
+      expect(logCalls.length).toBeGreaterThan(0);
+    });
+
+    it('console.table이 없는 환경에서 metadata는 console.log로 출력해야 함', () => {
+      const originalTable = console.table;
+      // @ts-expect-error: 테스트를 위해 의도적으로 undefined 설정
+      console.table = undefined;
+
+      logger.info('Message', { key: 'value' });
+      
+      const logCalls = vi.mocked(console.log).mock.calls;
+      expect(logCalls.length).toBeGreaterThan(0);
+
+      // 복원
+      console.table = originalTable;
+    });
+
+    it('log level이 none일 때 getConsoleFunction의 default 케이스를 테스트', () => {
+      logger.setLogLevel('none');
+      
+      // none 레벨에서는 모든 로그가 출력되지 않음 (shouldLog에서 currentLevel이 'none'이면 false 반환)
+      // getConsoleFunction의 default 케이스는 'none' 레벨일 때 사용됨
+      // 하지만 none 레벨에서는 shouldLog가 false를 반환하므로 로그가 출력되지 않음
+      // 따라서 getConsoleFunction의 default 케이스를 직접 테스트하기는 어려움
+      // 대신 다른 레벨에서 getConsoleFunction이 올바르게 동작하는지 확인
+      
+      logger.setLogLevel('error');
+      logger.error('Error message');
+      expect(consoleSpy.error).toHaveBeenCalled();
+      
+      // none 레벨로 다시 설정하여 모든 로그가 출력되지 않음을 확인
+      logger.setLogLevel('none');
+      logger.warn('Warning');
+      logger.debug('Debug');
+      logger.info('Info');
+      expect(consoleSpy.warn).not.toHaveBeenCalled();
+      expect(consoleSpy.debug).not.toHaveBeenCalled();
+      expect(consoleSpy.info).not.toHaveBeenCalled();
+    });
+
     it('console.info가 없는 환경에서 console.log를 사용해야 함', () => {
       const originalInfo = console.info;
-      // @ts-ignore
+      // @ts-expect-error: 테스트를 위해 의도적으로 undefined 설정
       console.info = undefined;
 
       logger.info('Test info');

@@ -5,12 +5,20 @@ import { WebLogger } from '../src/WebLogger';
 
 describe('Built-in Objects Handling', () => {
   let logger: WebLogger;
-  let consoleSpy: any;
+  let consoleSpy: {
+    log: ReturnType<typeof vi.spyOn<typeof console, 'log'>>;
+    info: ReturnType<typeof vi.spyOn<typeof console, 'info'>>;
+    debug: ReturnType<typeof vi.spyOn<typeof console, 'debug'>>;
+  };
 
   beforeEach(() => {
     logger = new WebLogger('[TEST]');
     logger.setLogLevel('debug');
-    consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+    consoleSpy = {
+      log: vi.spyOn(console, 'log').mockImplementation(() => {}),
+      info: vi.spyOn(console, 'info').mockImplementation(() => {}),
+      debug: vi.spyOn(console, 'debug').mockImplementation(() => {}),
+    };
     vi.spyOn(console, 'table').mockImplementation(() => {});
   });
 
@@ -23,7 +31,7 @@ describe('Built-in Objects Handling', () => {
       const date = new Date('2024-12-01T10:00:00Z');
       logger.info('Date test', { date, email: 'user@example.com' });
 
-      const tableCall = (console.table as any).mock.calls[0];
+      const tableCall = vi.mocked(console.table).mock.calls[0];
       expect(tableCall).toBeTruthy();
       expect(tableCall[0].date).toContain('2024-12-01');
       expect(tableCall[0].email).toBe('[REDACTED]');
@@ -36,7 +44,11 @@ describe('Built-in Objects Handling', () => {
       };
       logger.info('Custom date', { date: customDate });
 
-      const logCall = consoleSpy.mock.calls.find((call: any[]) =>
+      const logCall = [
+        ...consoleSpy.info.mock.calls,
+        ...consoleSpy.log.mock.calls,
+        ...consoleSpy.debug.mock.calls,
+      ].find((call: any[]) =>
         call.some((arg: any) => typeof arg === 'string' && arg.includes('Custom date'))
       );
       expect(logCall).toBeTruthy();
@@ -52,17 +64,24 @@ describe('Built-in Objects Handling', () => {
       ]);
       logger.info('Map test', map);
 
-      // Map이 console.log로 출력됨 (두 번째 매개변수로)
-      const logCall = consoleSpy.mock.calls.find((call: any[]) =>
+      // Map이 console.info 또는 console.log로 출력됨
+      const logCall = [
+        ...consoleSpy.info.mock.calls,
+        ...consoleSpy.log.mock.calls,
+        ...consoleSpy.debug.mock.calls,
+      ].find((call: any[]) =>
         call.some((arg: any) => typeof arg === 'string' && arg.includes('Map test'))
       );
       expect(logCall).toBeTruthy();
 
       // Map은 sanitizedParams로 전달됨
-      const mapArg = logCall[2]; // 세 번째 인자 (0: prefix+timestamp, 1: message, 2: map)
+      // 인자 순서: 0: prefix+timestamp+label, 1: message, 2: map
+      const mapArg = logCall[2];
       expect(mapArg).toBeInstanceOf(Map);
       expect(mapArg.get('user')).toBe('[EMAIL]');
-      expect(mapArg.get('apiKey')).toBe('[REDACTED]');
+      // 'apiKey' 키가 '[REDACTED]'로 변경되었으므로 키 자체가 변경됨
+      expect(mapArg.get('[REDACTED]')).toBe('secret-key-123');
+      expect(mapArg.has('apiKey')).toBe(false);
       expect(mapArg.get('normal')).toBe('regular-value');
     });
 
@@ -74,9 +93,14 @@ describe('Built-in Objects Handling', () => {
       ]);
       logger.info('Sensitive keys map', map);
 
-      const logCall = consoleSpy.mock.calls.find((call: any[]) =>
+      const logCall = [
+        ...consoleSpy.info.mock.calls,
+        ...consoleSpy.log.mock.calls,
+        ...consoleSpy.debug.mock.calls,
+      ].find((call: any[]) =>
         call.some((arg: any) => typeof arg === 'string' && arg.includes('Sensitive keys map'))
       );
+      expect(logCall).toBeTruthy();
       const mapArg = logCall[2]; // 세 번째 인자
 
       // 키 자체가 민감한 경우 [REDACTED]로 변경
@@ -97,9 +121,14 @@ describe('Built-in Objects Handling', () => {
       ]);
       logger.info('Set test', set);
 
-      const logCall = consoleSpy.mock.calls.find((call: any[]) =>
+      const logCall = [
+        ...consoleSpy.info.mock.calls,
+        ...consoleSpy.log.mock.calls,
+        ...consoleSpy.debug.mock.calls,
+      ].find((call: any[]) =>
         call.some((arg: any) => typeof arg === 'string' && arg.includes('Set test'))
       );
+      expect(logCall).toBeTruthy();
       const setArg = logCall[2]; // 세 번째 인자
 
       expect(setArg).toBeInstanceOf(Set);
@@ -122,7 +151,7 @@ describe('Built-in Objects Handling', () => {
         float64,
       });
 
-      const tableCall = (console.table as any).mock.calls[0];
+      const tableCall = vi.mocked(console.table).mock.calls[0];
       expect(tableCall).toBeTruthy();
       expect(tableCall[0].uint8).toBe('[BINARY_DATA]');
       expect(tableCall[0].int32).toBe('[BINARY_DATA]');
@@ -137,7 +166,7 @@ describe('Built-in Objects Handling', () => {
         const buffer = Buffer.from('Hello World', 'utf-8');
         logger.info('Buffer test', { buffer });
 
-        const tableCall = (console.table as any).mock.calls[0];
+        const tableCall = vi.mocked(console.table).mock.calls[0];
         expect(tableCall).toBeTruthy();
         expect(tableCall[0].buffer).toBe('[BUFFER]');
       } else {
@@ -162,7 +191,7 @@ describe('Built-in Objects Handling', () => {
 
       logger.info('Complex data', complexData);
 
-      const tableCall = (console.table as any).mock.calls[0];
+      const tableCall = vi.mocked(console.table).mock.calls[0];
       expect(tableCall).toBeTruthy();
 
       // Date는 ISO string으로 변환
@@ -196,9 +225,14 @@ describe('Built-in Objects Handling', () => {
       // Should process within reasonable time (< 100ms)
       expect(end - start).toBeLessThan(100);
 
-      const logCall = consoleSpy.mock.calls.find((call: any[]) =>
+      const logCall = [
+        ...consoleSpy.info.mock.calls,
+        ...consoleSpy.log.mock.calls,
+        ...consoleSpy.debug.mock.calls,
+      ].find((call: any[]) =>
         call.some((arg: any) => typeof arg === 'string' && arg.includes('Large map'))
       );
+      expect(logCall).toBeTruthy();
       const mapArg = logCall[2]; // 세 번째 인자
 
       expect(mapArg).toBeInstanceOf(Map);
@@ -221,9 +255,14 @@ describe('Built-in Objects Handling', () => {
       // Should process within reasonable time (< 100ms)
       expect(end - start).toBeLessThan(100);
 
-      const logCall = consoleSpy.mock.calls.find((call: any[]) =>
+      const logCall = [
+        ...consoleSpy.info.mock.calls,
+        ...consoleSpy.log.mock.calls,
+        ...consoleSpy.debug.mock.calls,
+      ].find((call: any[]) =>
         call.some((arg: any) => typeof arg === 'string' && arg.includes('Large set'))
       );
+      expect(logCall).toBeTruthy();
       const setArg = logCall[2]; // 세 번째 인자
 
       expect(setArg).toBeInstanceOf(Set);

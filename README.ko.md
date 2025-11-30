@@ -97,17 +97,60 @@ console.log(getLogLevel()); // 'debug'
 
 ### 4. 민감한 정보 자동 필터링
 
+Web Logger는 명확한 우선순위를 가진 두 가지 데이터 마스킹 방식을 제공합니다:
+
+#### 키 기반 마스킹 (높은 우선순위)
+객체 속성 키가 민감한 키워드와 일치하면 값 전체가 `[REDACTED]`로 대체됩니다:
+
 ```typescript
-// 자동으로 민감한 정보가 마스킹됩니다
-logDebug('User email: user@example.com');
-// 출력: User email: [EMAIL]
-
-logDebug('Card: 1234-5678-9012-3456');
-// 출력: Card: [CARD]
-
-logDebug('User data:', { password: 'secret123', email: 'user@example.com' });
-// 출력: User data: { password: '[REDACTED]', email: '[REDACTED]' }
+// 민감한 키는 값에 관계없이 완전히 마스킹됩니다
+logDebug('User data:', {
+  password: '123',           // → password: '[REDACTED]'
+  email: 'not-an-email',     // → email: '[REDACTED]'
+  apiKey: 'key123'           // → apiKey: '[REDACTED]'
+});
 ```
+
+**민감한 키 목록:** `password`, `passwd`, `pass`, `secret`, `token`, `apiKey`, `api_key`, `auth`, `authorization`, `cookie`, `session`, `private`, `ssn`, `email`, `phone`, `tel`, `mobile`, `card`, `credit`, `cvv`, `cvc`
+
+#### 패턴 기반 마스킹 (낮은 우선순위)
+민감하지 않은 키의 경우, 값을 검사하여 패턴에 따라 마스킹합니다:
+
+```typescript
+// 일반 속성 값에서 패턴 감지
+logDebug('Contact info:', {
+  userEmail: 'user@example.com',        // → userEmail: '[EMAIL]'
+  description: 'Call 010-1234-5678',    // → description: 'Call [PHONE]'
+  payment: '1234-5678-9012-3456'        // → payment: '[CARD]'
+});
+```
+
+**감지 패턴:** 이메일 주소 → `[EMAIL]`, 신용카드 → `[CARD]`, 전화번호 → `[PHONE]`, JWT 토큰 → `[JWT]`, API 키 → `[APIKEY]`, 비밀번호 → `[PASSWORD]`
+
+#### 우선순위 예시
+```typescript
+// 키 기반 마스킹이 우선 적용됩니다
+const data = {
+  email: 'user@example.com',     // 키 매칭 → '[REDACTED]' ('[EMAIL]' 아님)
+  userInfo: 'user@example.com'   // 키 미매칭 → '[EMAIL]'
+};
+```
+
+#### 상세 마스킹 동작
+
+1. **키 기반 마스킹 (최우선 체크)**: 속성 키가 민감한 키워드와 일치하면, 값의 내용과 관계없이 전체 값이 `[REDACTED]`로 대체됩니다.
+
+2. **패턴 기반 마스킹 (대체 방법)**: 키가 민감하지 않은 경우, 값에서 패턴을 검색합니다:
+   - 이메일 주소: `user@example.com` → `[EMAIL]`
+   - 신용카드: `1234-5678-9012-3456` → `[CARD]`
+   - 전화번호: `010-1234-5678` → `[PHONE]`
+   - JWT 토큰: `Bearer eyJ...` → `Bearer [JWT]`
+   - API 키: 32자 이상 문자열 → `[APIKEY]`
+   - 비밀번호: `password: "..."` 포함 문자열 → `[PASSWORD]`
+
+3. **내장 객체**: Map, Set, Date, TypedArray, Buffer는 특별히 처리됩니다 ([내장 객체 처리](#-내장-객체-처리) 섹션 참조).
+
+4. **중첩 객체**: 순환 참조를 방지하기 위해 최대 10 레벨까지 재귀적으로 sanitize됩니다.
 
 ### 5. Console API 호환성
 
@@ -335,6 +378,122 @@ __INITIAL_LOG_LEVEL__: string  // 초기 로그 레벨
 
 > 참고: Tree Shaking은 번들러(Webpack, Vite, Rollup 등)가 빌드 타임 상수를 기반으로 데드 코드를 제거합니다. 런타임에서 로그 레벨을 동적으로 변경하는 방법은 "설정" 섹션을 참조하세요.
 
+## 🗂️ 내장 객체 처리
+
+Web Logger는 Map, Set, Date, TypedArray, Buffer와 같은 JavaScript 내장 객체를 적절히 처리하여 복잡한 구조 내에서도 민감한 데이터가 마스킹되도록 보장합니다.
+
+### Map 객체
+
+Map의 키와 값이 모두 sanitize됩니다. 키가 민감한 키워드와 일치하면 키 자체가 `[REDACTED]`로 대체됩니다:
+
+```typescript
+import { logInfo } from '@cp949/web-logger';
+
+const userMap = new Map([
+  ['email', 'user@example.com'],      // 키 'email' → '[REDACTED]'
+  ['password', 'secret123'],          // 키 'password' → '[REDACTED]'
+  ['username', 'john'],               // 일반 키는 보존
+  ['contact', 'user@example.com']     // 값 마스킹: '[EMAIL]'
+]);
+
+logInfo('사용자 데이터:', userMap);
+// 출력: 키가 '[REDACTED]'로 대체되고 값이 sanitize된 Map
+```
+
+**중요 사항:**
+- Map 키는 민감한 키워드와 비교됩니다 (대소문자 구분 없음)
+- 민감한 키는 키 충돌을 방지하기 위해 `[REDACTED]`로 대체됩니다
+- Map 값은 일반 객체 속성과 동일한 규칙으로 sanitize됩니다
+
+### Set 객체
+
+Set 요소는 개별적으로 sanitize됩니다. **참고**: 여러 다른 값이 동일한 패턴으로 마스킹되면 (예: 여러 이메일 → `[EMAIL]`), Set의 고유성 특성에 따라 중복 제거됩니다:
+
+```typescript
+import { logInfo } from '@cp949/web-logger';
+
+const emailSet = new Set([
+  'user1@example.com',
+  'user2@example.com',
+  'admin@example.com'
+]);
+
+logInfo('이메일 목록:', emailSet);
+// 출력: Set(['[EMAIL]']) - 모든 이메일이 [EMAIL]로 마스킹되어 하나의 요소로 중복 제거됨
+```
+
+**중요 사항:**
+- Set 요소는 패턴 기반 마스킹을 사용하여 sanitize됩니다
+- 마스킹 후 여러 요소가 동일해지면 (예: 모두 `[EMAIL]`), Set의 고유성으로 인해 크기가 줄어듭니다
+- 이는 Set의 특성상 예상되는 동작입니다 - 원래 개수를 유지해야 한다면 Array 사용을 고려하세요
+
+### Date 객체
+
+Date 객체는 ISO 문자열로 변환된 후 민감한 패턴을 검사합니다:
+
+```typescript
+import { logInfo } from '@cp949/web-logger';
+
+const eventDate = new Date('2024-12-01');
+const customDate = {
+  toISOString: () => 'meeting-with-user@example.com-2024'
+};
+
+logInfo('이벤트 날짜:', eventDate);
+// 출력: "2024-12-01T00:00:00.000Z" (또는 유사한 ISO 형식)
+
+logInfo('커스텀 날짜:', customDate);
+// 출력: "meeting-with-[EMAIL]-2024" (ISO 문자열에서 이메일 패턴 감지)
+```
+
+### TypedArray와 Buffer
+
+바이너리 데이터 타입은 민감한 바이너리 내용의 의도치 않은 로깅을 방지하기 위해 마스킹됩니다:
+
+```typescript
+import { logInfo } from '@cp949/web-logger';
+
+// TypedArray (Uint8Array, Int32Array 등)
+const buffer = new Uint8Array([1, 2, 3, 4, 5]);
+logInfo('바이너리 데이터:', buffer);
+// 출력: "[BINARY_DATA]"
+
+// Node.js Buffer
+if (typeof Buffer !== 'undefined') {
+  const nodeBuffer = Buffer.from('sensitive data');
+  logInfo('Node 버퍼:', nodeBuffer);
+  // 출력: "[BUFFER]"
+}
+```
+
+**중요 사항:**
+- TypedArray (Uint8Array, Int32Array, Float64Array 등) → `[BINARY_DATA]`
+- Node.js Buffer → `[BUFFER]` (올바른 감지를 위해 TypedArray보다 먼저 체크)
+- DataView 객체는 그대로 보존됩니다 (마스킹하지 않음)
+
+### 중첩된 내장 객체
+
+내장 객체는 일반 객체와 배열 내에 중첩될 수 있습니다:
+
+```typescript
+import { logInfo } from '@cp949/web-logger';
+
+const complexData = {
+  users: new Map([
+    ['admin', { email: 'admin@example.com', role: 'admin' }],
+    ['user1', { email: 'user1@example.com', role: 'user' }]
+  ]),
+  emails: new Set(['user@example.com', 'admin@example.com']),
+  lastUpdated: new Date(),
+  metadata: {
+    binaryData: new Uint8Array([1, 2, 3])
+  }
+};
+
+logInfo('복잡한 데이터:', complexData);
+// 모든 레벨에서 적절한 마스킹이 적용됨
+```
+
 ## 🧪 테스트
 
 ```bash
@@ -346,11 +505,11 @@ npm test -- --coverage
 ```
 
 ### 테스트 커버리지
-- Statements: 72.63%
-- Branches: 62.42%
-- Functions: 82.35%
-- Lines: 74.07%
-- 테스트 케이스: 34개
+- Statements: 85.26%
+- Branches: 82.3%
+- Functions: 90.36%
+- Lines: 86.18%
+- 테스트 케이스: 147개 (마스킹 우선순위, 내장 객체, console API, 환경 감지 포함)
 
 ## 📝 API 레퍼런스
 

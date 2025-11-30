@@ -97,17 +97,60 @@ console.log(getLogLevel()); // 'debug'
 
 ### 4. Automatic Sensitive Data Filtering
 
+Web Logger provides two types of data masking with clear priority:
+
+#### Key-based Masking (Higher Priority)
+When object property keys match sensitive keywords, the entire value is replaced with `[REDACTED]`:
+
 ```typescript
-// Sensitive information is automatically masked
-logDebug('User email: user@example.com');
-// Output: User email: [EMAIL]
-
-logDebug('Card: 1234-5678-9012-3456');
-// Output: Card: [CARD]
-
-logDebug('User data:', { password: 'secret123', email: 'user@example.com' });
-// Output: User data: { password: '[REDACTED]', email: '[REDACTED]' }
+// Sensitive keys are completely masked regardless of value
+logDebug('User data:', {
+  password: '123',           // → password: '[REDACTED]'
+  email: 'not-an-email',     // → email: '[REDACTED]'
+  apiKey: 'key123'           // → apiKey: '[REDACTED]'
+});
 ```
+
+**Sensitive keys include:** `password`, `passwd`, `pass`, `secret`, `token`, `apiKey`, `api_key`, `auth`, `authorization`, `cookie`, `session`, `private`, `ssn`, `email`, `phone`, `tel`, `mobile`, `card`, `credit`, `cvv`, `cvc`
+
+#### Pattern-based Masking (Lower Priority)
+For non-sensitive keys, values are scanned for patterns and masked accordingly:
+
+```typescript
+// Pattern detection in regular property values
+logDebug('Contact info:', {
+  userEmail: 'user@example.com',        // → userEmail: '[EMAIL]'
+  description: 'Call 010-1234-5678',    // → description: 'Call [PHONE]'
+  payment: '1234-5678-9012-3456'        // → payment: '[CARD]'
+});
+```
+
+**Detected patterns:** Email addresses → `[EMAIL]`, Credit cards → `[CARD]`, Phone numbers → `[PHONE]`, JWT tokens → `[JWT]`, API keys → `[APIKEY]`, Passwords → `[PASSWORD]`
+
+#### Priority Example
+```typescript
+// Key-based masking takes precedence
+const data = {
+  email: 'user@example.com',     // Key matches → '[REDACTED]' (not '[EMAIL]')
+  userInfo: 'user@example.com'   // Key doesn't match → '[EMAIL]'
+};
+```
+
+#### Detailed Masking Behavior
+
+1. **Key-based masking (first check)**: If the property key matches a sensitive keyword, the entire value is replaced with `[REDACTED]`, regardless of the value content.
+
+2. **Pattern-based masking (fallback)**: If the key is not sensitive, the value is scanned for patterns:
+   - Email addresses: `user@example.com` → `[EMAIL]`
+   - Credit cards: `1234-5678-9012-3456` → `[CARD]`
+   - Phone numbers: `010-1234-5678` → `[PHONE]`
+   - JWT tokens: `Bearer eyJ...` → `Bearer [JWT]`
+   - API keys: 32+ character strings → `[APIKEY]`
+   - Passwords: Strings containing `password: "..."` → `[PASSWORD]`
+
+3. **Built-in objects**: Map, Set, Date, TypedArray, and Buffer are handled specially (see [Built-in Objects Handling](#-built-in-objects-handling) section).
+
+4. **Nested objects**: Recursive sanitization up to 10 levels deep to prevent circular references.
 
 ### 5. Console API Compatibility
 
@@ -160,7 +203,7 @@ logger.error('Failed to fetch:', error, { endpoint, status });
 
 ## 🌍 SSR Support
 
-This library fully supports Server-Side Rendering (SSR) environments like Next.js, Nuxt, and other frameworks.
+This library fully supports Server-Side Rendering (SSR) environments like Next.js, Remix, Nuxt, and other frameworks.
 
 ### How It Works
 
@@ -168,32 +211,61 @@ The library automatically detects the environment and uses the appropriate globa
 - **Browser (CSR)**: Uses `window.__WEB_LOGGER_LOG_LEVEL__`
 - **Server (SSR)**: Uses `globalThis.__WEB_LOGGER_LOG_LEVEL__`
 
+The log level is shared across all WebLogger instances via `globalThis`, ensuring consistent behavior in both server and client environments.
+
 ### Key Features for SSR
 
 1. **No Runtime Errors**: Works without throwing errors in Node.js environments
-2. **Shared Log Level**: Log levels are shared across all instances via globalThis
+2. **Shared Log Level**: Log levels are shared across all instances via `globalThis`
 3. **Same Security Policies**: Sensitive data masking works identically on server and client
 4. **Zero Configuration**: No special setup required for SSR frameworks
+5. **Built-in Objects Support**: Map, Set, Date, TypedArray, and Buffer are properly handled in both environments
 
-### Usage in SSR Frameworks
+### Usage in Next.js App Router
 
 ```typescript
-// Works in both server and client without any special configuration
-import { logDebug, logInfo, logWarn, logError } from '@cp949/web-logger';
+// app/page.tsx
+import { logDebug, logInfo } from '@cp949/web-logger';
 
-// Next.js page or API route
 export default function Page() {
-  logDebug('Server-side debug message'); // Works on server
-  logInfo('Page rendered'); // Works on both server and client
-
+  logInfo('Page component rendered'); // Works on both server and client
+  
   return <div>Hello World</div>;
 }
 
-// API route
+// app/api/route.ts
+import { logDebug, logError } from '@cp949/web-logger';
+
 export async function GET() {
-  logDebug('API route called'); // Works in Node.js
-  return Response.json({ message: 'Hello' });
+  try {
+    logDebug('API route called'); // Works in Node.js
+    // ... your logic
+    return Response.json({ message: 'Hello' });
+  } catch (error) {
+    logError('API error:', error); // Properly masks sensitive data
+    return Response.json({ error: 'Internal error' }, { status: 500 });
+  }
 }
+```
+
+### Log Level Synchronization
+
+Log levels set in one environment are automatically synchronized:
+
+```typescript
+// Server-side (Next.js API route)
+import { setLogLevel } from '@cp949/web-logger';
+
+export async function GET() {
+  setLogLevel('debug'); // Sets globalThis.__WEB_LOGGER_LOG_LEVEL__
+  // All WebLogger instances (server and client) will use 'debug'
+}
+
+// Client-side (React component)
+import { WebLogger } from '@cp949/web-logger';
+
+const logger = new WebLogger('[App]');
+logger.debug('This will work'); // Uses the level set on server
 ```
 
 ### Dynamic Import (Optional)
@@ -299,6 +371,120 @@ resetSensitiveKeys();
 
 > Note: All WebLogger instances share the same sensitive key list. Keys are stored case-insensitively.
 
+## 🗂️ Built-in Objects Handling
+
+Web Logger properly handles JavaScript built-in objects like Map, Set, Date, TypedArray, and Buffer, ensuring sensitive data is masked even within these complex structures.
+
+### Map Objects
+
+Map keys and values are both sanitized. If a key matches a sensitive keyword, the key itself is replaced with `[REDACTED]`:
+
+```typescript
+import { logInfo } from '@cp949/web-logger';
+
+const userMap = new Map([
+  ['email', 'user@example.com'],      // Key 'email' → '[REDACTED]'
+  ['password', 'secret123'],          // Key 'password' → '[REDACTED]'
+  ['username', 'john'],               // Normal key preserved
+  ['contact', 'user@example.com']     // Value masked: '[EMAIL]'
+]);
+
+logInfo('User data:', userMap);
+// Output: Map with keys '[REDACTED]' and sanitized values
+```
+
+**Important Notes:**
+- Map keys are checked against sensitive keywords (case-insensitive)
+- If a key is sensitive, it's replaced with `[REDACTED]` to prevent key collision
+- Map values are sanitized using the same rules as regular object properties
+
+### Set Objects
+
+Set elements are sanitized individually. **Note**: If multiple different values are masked to the same pattern (e.g., multiple emails → `[EMAIL]`), Set's uniqueness property will deduplicate them:
+
+```typescript
+import { logInfo } from '@cp949/web-logger';
+
+const emailSet = new Set([
+  'user1@example.com',
+  'user2@example.com',
+  'admin@example.com'
+]);
+
+logInfo('Email list:', emailSet);
+// Output: Set(['[EMAIL]']) - All emails masked to [EMAIL], Set deduplicates to single element
+```
+
+**Important Notes:**
+- Set elements are sanitized using pattern-based masking
+- After masking, if multiple elements become identical (e.g., all `[EMAIL]`), Set's uniqueness will reduce the size
+- This is expected behavior due to Set's nature - consider using an Array if you need to preserve the original count
+
+### Date Objects
+
+Date objects are converted to ISO strings and then scanned for sensitive patterns:
+
+```typescript
+import { logInfo } from '@cp949/web-logger';
+
+const eventDate = new Date('2024-12-01');
+const customDate = {
+  toISOString: () => 'meeting-with-user@example.com-2024'
+};
+
+logInfo('Event date:', eventDate);
+// Output: "2024-12-01T00:00:00.000Z" (or similar ISO format)
+
+logInfo('Custom date:', customDate);
+// Output: "meeting-with-[EMAIL]-2024" (email pattern detected in ISO string)
+```
+
+### TypedArray and Buffer
+
+Binary data types are masked to prevent accidental logging of sensitive binary content:
+
+```typescript
+import { logInfo } from '@cp949/web-logger';
+
+// TypedArray (Uint8Array, Int32Array, etc.)
+const buffer = new Uint8Array([1, 2, 3, 4, 5]);
+logInfo('Binary data:', buffer);
+// Output: "[BINARY_DATA]"
+
+// Node.js Buffer
+if (typeof Buffer !== 'undefined') {
+  const nodeBuffer = Buffer.from('sensitive data');
+  logInfo('Node buffer:', nodeBuffer);
+  // Output: "[BUFFER]"
+}
+```
+
+**Important Notes:**
+- TypedArray (Uint8Array, Int32Array, Float64Array, etc.) → `[BINARY_DATA]`
+- Node.js Buffer → `[BUFFER]` (checked before TypedArray to ensure correct detection)
+- DataView objects are preserved as-is (not masked)
+
+### Nested Built-in Objects
+
+Built-in objects can be nested within regular objects and arrays:
+
+```typescript
+import { logInfo } from '@cp949/web-logger';
+
+const complexData = {
+  date: new Date('2024-12-01'),
+  userMap: new Map([
+    ['email', 'user@example.com'],
+    ['password', 'secret']
+  ]),
+  emailSet: new Set(['user1@example.com', 'user2@example.com']),
+  binaryData: new Uint8Array([1, 2, 3])
+};
+
+logInfo('Complex data:', complexData);
+// All nested built-in objects are properly sanitized
+```
+
 ## 📊 Performance
 
 ### Benchmark Results
@@ -346,11 +532,11 @@ npm test -- --coverage
 ```
 
 ### Test Coverage
-- Statements: 72.63%
-- Branches: 62.42%
-- Functions: 82.35%
-- Lines: 74.07%
-- Test cases: 34
+- Statements: 85.26%
+- Branches: 82.3%
+- Functions: 90.36%
+- Lines: 86.18%
+- Test cases: 147 (including masking priority, built-in objects, console API, environment detection)
 
 ## 📝 API Reference
 
