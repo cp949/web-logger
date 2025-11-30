@@ -1,6 +1,6 @@
 {
   "name": "@cp949/web-logger",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Web environment conditional logging utility with automatic sensitive data filtering and runtime control",
   "type": "module",
   "main": "./dist/index.cjs",
