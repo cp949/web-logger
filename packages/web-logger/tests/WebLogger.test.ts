@@ -32,7 +32,7 @@ describe('WebLogger', () => {
         delete storage[key];
       }),
       clear: vi.fn(() => {
-        Object.keys(storage).forEach(key => delete storage[key]);
+        Object.keys(storage).forEach((key) => delete storage[key]);
       }),
     };
     Object.defineProperty(window, 'localStorage', {
@@ -43,7 +43,6 @@ describe('WebLogger', () => {
 
     // window.__WEB_LOGGER_LOG_LEVEL__ 초기화
     if (typeof window !== 'undefined') {
-      // @ts-expect-error: 테스트를 위해 의도적으로 속성 삭제
       delete window.__WEB_LOGGER_LOG_LEVEL__;
     }
 
@@ -74,7 +73,6 @@ describe('WebLogger', () => {
     }
     // window.__WEB_LOGGER_LOG_LEVEL__ 초기화
     if (typeof window !== 'undefined') {
-      // @ts-expect-error: 테스트를 위해 의도적으로 속성 삭제
       delete window.__WEB_LOGGER_LOG_LEVEL__;
     }
     // localStorage 초기화
@@ -138,7 +136,8 @@ describe('WebLogger', () => {
     });
 
     it('JWT 토큰을 마스킹해야 함', () => {
-      const token = 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.dozjgNryP4J3jVmNHl0w5N_XgL0n3I9PlFUP0THsR8U';
+      const token =
+        'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.dozjgNryP4J3jVmNHl0w5N_XgL0n3I9PlFUP0THsR8U';
       logger.debug(`Token: ${token}`);
 
       expect(consoleSpy.log).toHaveBeenCalled();
@@ -209,15 +208,21 @@ describe('WebLogger', () => {
       });
 
       customLogger.debug('Ticket:', 'TICKET-123');
-      const logCalls = consoleSpy.log.mock.calls.length ? consoleSpy.log.mock.calls : consoleSpy.debug.mock.calls;
+      const logCalls = consoleSpy.log.mock.calls.length
+        ? consoleSpy.log.mock.calls
+        : consoleSpy.debug.mock.calls;
       expect(logCalls.length).toBeGreaterThan(0);
-      const flattened = logCalls.flat().filter((arg: unknown) => typeof arg === 'string') as string[];
+      const flattened = logCalls
+        .flat()
+        .filter((arg: unknown) => typeof arg === 'string') as string[];
       expect(flattened.some((arg) => arg.includes('[TICKET]'))).toBe(true);
       expect(flattened.some((arg) => arg.includes('TICKET-123'))).toBe(false);
 
       vi.clearAllMocks();
       customLogger.debug('Email: user@example.com');
-      const secondCalls = consoleSpy.log.mock.calls.length ? consoleSpy.log.mock.calls : consoleSpy.debug.mock.calls;
+      const secondCalls = consoleSpy.log.mock.calls.length
+        ? consoleSpy.log.mock.calls
+        : consoleSpy.debug.mock.calls;
       const secondMessage = extractMessageFromLog(secondCalls);
       expect(secondMessage).toContain('user@example.com');
     });
@@ -227,13 +232,19 @@ describe('WebLogger', () => {
       addSensitivePatterns({ ticket: /TICKET-\d+/g });
 
       logger.debug('Ticket:', 'TICKET-999');
-      const ticketCalls = consoleSpy.log.mock.calls.length ? consoleSpy.log.mock.calls : consoleSpy.debug.mock.calls;
-      const flattened = ticketCalls.flat().filter((arg: unknown) => typeof arg === 'string') as string[];
+      const ticketCalls = consoleSpy.log.mock.calls.length
+        ? consoleSpy.log.mock.calls
+        : consoleSpy.debug.mock.calls;
+      const flattened = ticketCalls
+        .flat()
+        .filter((arg: unknown) => typeof arg === 'string') as string[];
       expect(flattened.some((arg) => arg.includes('[TICKET]'))).toBe(true);
 
       vi.clearAllMocks();
       logger.debug('Email user@example.com');
-      const emailMessage = extractMessageFromLog(consoleSpy.log.mock.calls.length ? consoleSpy.log.mock.calls : consoleSpy.debug.mock.calls);
+      const emailMessage = extractMessageFromLog(
+        consoleSpy.log.mock.calls.length ? consoleSpy.log.mock.calls : consoleSpy.debug.mock.calls,
+      );
       expect(emailMessage).toContain('[EMAIL]');
     });
 
@@ -387,17 +398,14 @@ describe('WebLogger', () => {
       expect(consoleSpy.log.mock.calls.length).toBeGreaterThanOrEqual(1);
 
       // console.table도 호출될 수 있음
-      const allCalls = [
-        ...consoleSpy.log.mock.calls,
-        ...consoleSpy.table.mock.calls
-      ];
+      const allCalls = [...consoleSpy.log.mock.calls, ...consoleSpy.table.mock.calls];
 
       // [CIRCULAR] 텍스트가 어딘가에 포함되어 있어야 함
       const hasCircular = allCalls.some((call: any[]) =>
         call.some((arg: any) => {
           const str = typeof arg === 'string' ? arg : JSON.stringify(arg);
           return str && str.includes('[CIRCULAR]');
-        })
+        }),
       );
       expect(hasCircular).toBe(true);
     });
@@ -418,17 +426,14 @@ describe('WebLogger', () => {
       expect(consoleSpy.log.mock.calls.length).toBeGreaterThanOrEqual(1);
 
       // 모든 console 호출 확인
-      const allCalls = [
-        ...consoleSpy.log.mock.calls,
-        ...consoleSpy.table.mock.calls
-      ];
+      const allCalls = [...consoleSpy.log.mock.calls, ...consoleSpy.table.mock.calls];
 
       // [MAX_DEPTH] 텍스트 포함 확인
       const hasMaxDepth = allCalls.some((call: any[]) =>
         call.some((arg: any) => {
           const str = typeof arg === 'string' ? arg : JSON.stringify(arg);
           return str && str.includes('[MAX_DEPTH]');
-        })
+        }),
       );
       expect(hasMaxDepth).toBe(true);
     });
@@ -442,7 +447,9 @@ describe('WebLogger', () => {
       expect(() => logger.debug('Map:', map)).not.toThrow();
 
       const mapCalls = [...consoleSpy.log.mock.calls, ...consoleSpy.debug.mock.calls];
-      const mapArg = mapCalls.flat().find((arg: unknown) => arg instanceof Map) as Map<string, unknown> | undefined;
+      const mapArg = mapCalls.flat().find((arg: unknown) => arg instanceof Map) as
+        | Map<string, unknown>
+        | undefined;
       expect(mapArg).toBeInstanceOf(Map);
       expect(mapArg?.get('self')).toBe('[CIRCULAR]');
     });
@@ -454,7 +461,9 @@ describe('WebLogger', () => {
       expect(() => logger.debug('Set:', set)).not.toThrow();
 
       const setCalls = [...consoleSpy.log.mock.calls, ...consoleSpy.debug.mock.calls];
-      const setArg = setCalls.flat().find((arg: unknown) => arg instanceof Set) as Set<unknown> | undefined;
+      const setArg = setCalls.flat().find((arg: unknown) => arg instanceof Set) as
+        | Set<unknown>
+        | undefined;
       expect(setArg).toBeInstanceOf(Set);
       expect(Array.from(setArg ?? []).includes('[CIRCULAR]')).toBe(true);
     });
@@ -468,7 +477,7 @@ describe('WebLogger', () => {
         value: { isAdmin: true },
         enumerable: true,
         writable: true,
-        configurable: true
+        configurable: true,
       });
       malicious.normal = 'data';
 
@@ -493,24 +502,21 @@ describe('WebLogger', () => {
     it('constructor 키를 필터링해야 함', () => {
       const malicious = {
         constructor: { prototype: { isAdmin: true } },
-        normal: 'data'
+        normal: 'data',
       };
 
       logger.debug('Data:', malicious);
 
       expect(consoleSpy.log.mock.calls.length).toBeGreaterThanOrEqual(1);
 
-      const allCalls = [
-        ...consoleSpy.log.mock.calls,
-        ...consoleSpy.table.mock.calls
-      ];
+      const allCalls = [...consoleSpy.log.mock.calls, ...consoleSpy.table.mock.calls];
 
       // [UNSAFE_KEY] 텍스트 포함 확인
       const hasUnsafeKey = allCalls.some((call: any[]) =>
         call.some((arg: any) => {
           const str = typeof arg === 'string' ? arg : JSON.stringify(arg);
           return str && str.includes('[UNSAFE_KEY]');
-        })
+        }),
       );
       expect(hasUnsafeKey).toBe(true);
     });
@@ -524,8 +530,8 @@ describe('WebLogger', () => {
       const callArgs = consoleSpy.log.mock.calls[0];
 
       // [TRUNCATED] 텍스트 포함 확인
-      const hasTruncated = callArgs.some((arg: any) =>
-        typeof arg === 'string' && arg.includes('[TRUNCATED]')
+      const hasTruncated = callArgs.some(
+        (arg: any) => typeof arg === 'string' && arg.includes('[TRUNCATED]'),
       );
       expect(hasTruncated).toBe(true);
     });
@@ -537,8 +543,8 @@ describe('WebLogger', () => {
       const callArgs = consoleSpy.log.mock.calls[0];
 
       // [TRUNCATED] 텍스트가 없어야 함
-      const hasTruncated = callArgs.some((arg: any) =>
-        typeof arg === 'string' && arg.includes('[TRUNCATED]')
+      const hasTruncated = callArgs.some(
+        (arg: any) => typeof arg === 'string' && arg.includes('[TRUNCATED]'),
       );
       expect(hasTruncated).toBe(false);
     });
@@ -549,9 +555,9 @@ describe('WebLogger', () => {
       // ReDoS 공격 시나리오: 매우 긴 반복 패턴
       // 이메일 정규식에 취약한 패턴
       const maliciousEmail = 'a'.repeat(1000) + '@' + 'b'.repeat(1000) + '.c';
-      
+
       vi.clearAllMocks();
-      
+
       const startTime = Date.now();
       logger.debug('Malicious input:', maliciousEmail);
       const endTime = Date.now();
@@ -562,16 +568,17 @@ describe('WebLogger', () => {
 
       // 로그가 정상적으로 출력되어야 함 (크래시하지 않음)
       // 여러 파라미터일 때는 console.log 또는 console.debug를 사용할 수 있음
-      const wasCalled = consoleSpy.log.mock.calls.length > 0 || consoleSpy.debug.mock.calls.length > 0;
+      const wasCalled =
+        consoleSpy.log.mock.calls.length > 0 || consoleSpy.debug.mock.calls.length > 0;
       expect(wasCalled).toBe(true);
     });
 
     it('복잡한 반복 패턴에 대해 안전하게 처리해야 함', () => {
       // 카드번호 정규식에 취약한 패턴
       const maliciousCard = '1'.repeat(500) + '-' + '2'.repeat(500) + '-' + '3'.repeat(500);
-      
+
       vi.clearAllMocks();
-      
+
       const startTime = Date.now();
       logger.debug('Card input:', maliciousCard);
       const endTime = Date.now();
@@ -579,16 +586,17 @@ describe('WebLogger', () => {
 
       // 실행 시간이 합리적인 범위 내에 있어야 함
       expect(executionTime).toBeLessThan(1000);
-      const wasCalled = consoleSpy.log.mock.calls.length > 0 || consoleSpy.debug.mock.calls.length > 0;
+      const wasCalled =
+        consoleSpy.log.mock.calls.length > 0 || consoleSpy.debug.mock.calls.length > 0;
       expect(wasCalled).toBe(true);
     });
 
     it('매우 긴 문자열도 타임아웃 내에 처리되어야 함', () => {
       // 최대 길이 제한을 넘는 문자열
       const veryLongString = 'x'.repeat(10000) + '@example.com';
-      
+
       vi.clearAllMocks();
-      
+
       const startTime = Date.now();
       logger.debug('Very long string:', veryLongString);
       const endTime = Date.now();
@@ -596,15 +604,14 @@ describe('WebLogger', () => {
 
       // 실행 시간이 합리적인 범위 내에 있어야 함
       expect(executionTime).toBeLessThan(1000);
-      const wasCalled = consoleSpy.log.mock.calls.length > 0 || consoleSpy.debug.mock.calls.length > 0;
+      const wasCalled =
+        consoleSpy.log.mock.calls.length > 0 || consoleSpy.debug.mock.calls.length > 0;
       expect(wasCalled).toBe(true);
 
       // [TRUNCATED] 표시가 있어야 함
       const allCalls = [...consoleSpy.log.mock.calls, ...consoleSpy.debug.mock.calls];
       const hasTruncated = allCalls.some((call: any[]) =>
-        call.some((arg: any) =>
-          typeof arg === 'string' && arg.includes('[TRUNCATED]')
-        )
+        call.some((arg: any) => typeof arg === 'string' && arg.includes('[TRUNCATED]')),
       );
       expect(hasTruncated).toBe(true);
     });
@@ -612,15 +619,16 @@ describe('WebLogger', () => {
     it('정규식 실행 중 오류가 발생해도 크래시하지 않아야 함', () => {
       // 특수 문자로 구성된 악의적 입력
       const maliciousInput = 'a'.repeat(100) + '\\' + 'b'.repeat(100);
-      
+
       vi.clearAllMocks();
-      
+
       // 크래시하지 않고 정상적으로 처리되어야 함
       expect(() => {
         logger.debug('Malicious regex input:', maliciousInput);
       }).not.toThrow();
 
-      const wasCalled = consoleSpy.log.mock.calls.length > 0 || consoleSpy.debug.mock.calls.length > 0;
+      const wasCalled =
+        consoleSpy.log.mock.calls.length > 0 || consoleSpy.debug.mock.calls.length > 0;
       expect(wasCalled).toBe(true);
     });
   });
@@ -630,7 +638,7 @@ describe('WebLogger', () => {
       const data = {
         username: 'john',
         password: 'secret123',
-        email: 'john@example.com'
+        email: 'john@example.com',
       };
 
       logger.debug('User data:', data);
@@ -648,7 +656,7 @@ describe('WebLogger', () => {
       const data = {
         userId: '123',
         accessToken: 'secret-token-value',
-        refreshToken: 'refresh-token-value'
+        refreshToken: 'refresh-token-value',
       };
 
       logger.debug('Auth data:', data);
@@ -773,7 +781,6 @@ describe('WebLogger', () => {
 
       // window.__WEB_LOGGER_LOG_LEVEL__ 초기화 (프로덕션 기본값 사용)
       if (typeof window !== 'undefined') {
-        // @ts-expect-error: 테스트를 위해 의도적으로 속성 삭제
         delete window.__WEB_LOGGER_LOG_LEVEL__;
       }
       if (typeof localStorage !== 'undefined') {
@@ -786,17 +793,21 @@ describe('WebLogger', () => {
       vi.clearAllMocks();
 
       prodLogger.debug('Should not appear'); // 출력 안됨
-      prodLogger.info('Should not appear');  // 출력 안됨
-      prodLogger.warn('Should appear');      // warn은 프로덕션에서도 출력
-      prodLogger.error('Should appear');     // error는 프로덕션에서도 출력
+      prodLogger.info('Should not appear'); // 출력 안됨
+      prodLogger.warn('Should appear'); // warn은 프로덕션에서도 출력
+      prodLogger.error('Should appear'); // error는 프로덕션에서도 출력
 
       // debug와 info는 호출되지 않아야 함
-      expect(consoleSpy.log.mock.calls.filter(call =>
-        call[0] && typeof call[0] === 'string' && call[0].includes('DEBUG')
-      ).length).toBe(0);
-      expect(consoleSpy.log.mock.calls.filter(call =>
-        call[0] && typeof call[0] === 'string' && call[0].includes('INFO')
-      ).length).toBe(0);
+      expect(
+        consoleSpy.log.mock.calls.filter(
+          (call) => call[0] && typeof call[0] === 'string' && call[0].includes('DEBUG'),
+        ).length,
+      ).toBe(0);
+      expect(
+        consoleSpy.log.mock.calls.filter(
+          (call) => call[0] && typeof call[0] === 'string' && call[0].includes('INFO'),
+        ).length,
+      ).toBe(0);
       expect(consoleSpy.debug).not.toHaveBeenCalled();
       expect(consoleSpy.info).not.toHaveBeenCalled();
 
@@ -817,7 +828,6 @@ describe('WebLogger', () => {
       // 하지만 실제로는 배열도 table로 표시될 수 있음
       // 이 테스트는 배열이 객체로 변환되어 table로 표시되는 것을 확인
       const arrayData = [1, 2, 3];
-      // @ts-expect-error: 테스트를 위해 의도적으로 배열을 LogMetadata로 전달
       logger.group('Array data', arrayData);
       logger.groupEnd();
 
@@ -836,7 +846,7 @@ describe('WebLogger', () => {
       // 하지만 실제로는 style이 undefined가 아니므로, style이 false인 경우를 시뮬레이션
       // logWithStyle에서 style이 없으면 else 블록으로 가서 fallback 사용
       logger.warn('Warning message');
-      
+
       const warnCalls = vi.mocked(console.warn).mock.calls;
       expect(warnCalls.length).toBeGreaterThan(0);
       const lastCall = warnCalls[warnCalls.length - 1];
@@ -847,7 +857,7 @@ describe('WebLogger', () => {
     it('logWithStyle에서 style이 없는 경우 fallback 경로를 사용해야 함', () => {
       // error 레벨은 스타일이 없으므로 fallback 경로를 사용
       logger.error('Error message');
-      
+
       const errorCalls = vi.mocked(console.error).mock.calls;
       expect(errorCalls.length).toBeGreaterThan(0);
     });
@@ -858,7 +868,7 @@ describe('WebLogger', () => {
       logger.info(true);
       logger.info(null);
       logger.info(undefined);
-      
+
       const logCalls = [
         ...vi.mocked(console.log).mock.calls,
         ...vi.mocked(console.info).mock.calls,
@@ -869,34 +879,34 @@ describe('WebLogger', () => {
     it('metadata가 Map인 경우 console.log로 출력해야 함', () => {
       const mapMetadata = new Map([['key', 'value']]);
       logger.info('Message', mapMetadata);
-      
+
       // Map metadata는 logWithStyle에서 별도로 console.log로 출력됨
       const logCalls = [
         ...vi.mocked(console.log).mock.calls,
         ...vi.mocked(console.info).mock.calls,
       ];
-      expect(logCalls.some((call: unknown[]) => 
-        call.some((arg: unknown) => arg instanceof Map)
-      )).toBe(true);
+      expect(
+        logCalls.some((call: unknown[]) => call.some((arg: unknown) => arg instanceof Map)),
+      ).toBe(true);
     });
 
     it('metadata가 Set인 경우 console.log로 출력해야 함', () => {
       const setMetadata = new Set(['value1', 'value2']);
       logger.info('Message', setMetadata);
-      
+
       // Set metadata는 logWithStyle에서 별도로 console.log로 출력됨
       const logCalls = [
         ...vi.mocked(console.log).mock.calls,
         ...vi.mocked(console.info).mock.calls,
       ];
-      expect(logCalls.some((call: unknown[]) => 
-        call.some((arg: unknown) => arg instanceof Set)
-      )).toBe(true);
+      expect(
+        logCalls.some((call: unknown[]) => call.some((arg: unknown) => arg instanceof Set)),
+      ).toBe(true);
     });
 
     it('metadata가 빈 객체인 경우 console.log로 출력해야 함', () => {
       logger.info('Message', {});
-      
+
       const logCalls = vi.mocked(console.log).mock.calls;
       expect(logCalls.length).toBeGreaterThan(0);
     });
@@ -907,7 +917,7 @@ describe('WebLogger', () => {
       console.table = undefined;
 
       logger.info('Message', { key: 'value' });
-      
+
       const logCalls = vi.mocked(console.log).mock.calls;
       expect(logCalls.length).toBeGreaterThan(0);
 
@@ -917,17 +927,17 @@ describe('WebLogger', () => {
 
     it('log level이 none일 때 getConsoleFunction의 default 케이스를 테스트', () => {
       logger.setLogLevel('none');
-      
+
       // none 레벨에서는 모든 로그가 출력되지 않음 (shouldLog에서 currentLevel이 'none'이면 false 반환)
       // getConsoleFunction의 default 케이스는 'none' 레벨일 때 사용됨
       // 하지만 none 레벨에서는 shouldLog가 false를 반환하므로 로그가 출력되지 않음
       // 따라서 getConsoleFunction의 default 케이스를 직접 테스트하기는 어려움
       // 대신 다른 레벨에서 getConsoleFunction이 올바르게 동작하는지 확인
-      
+
       logger.setLogLevel('error');
       logger.error('Error message');
       expect(consoleSpy.error).toHaveBeenCalled();
-      
+
       // none 레벨로 다시 설정하여 모든 로그가 출력되지 않음을 확인
       logger.setLogLevel('none');
       logger.warn('Warning');
@@ -982,7 +992,6 @@ describe('WebLogger', () => {
         configurable: true,
       });
     });
-
   });
 
   describe('민감한 키 관리', () => {
@@ -1018,7 +1027,7 @@ describe('WebLogger', () => {
       // getSensitiveKeys로 email이 제거되었는지 확인
       const keys = getSensitiveKeys();
       expect(keys).not.toContain('email');
-      
+
       // password는 여전히 있어야 함
       expect(keys).toContain('password');
     });
@@ -1077,7 +1086,7 @@ describe('WebLogger', () => {
       // getSensitiveKeys는 동일한 결과를 반환해야 함
       const keys1 = getSensitiveKeys();
       const keys2 = getSensitiveKeys();
-      
+
       expect(keys1).toEqual(keys2);
       expect(keys1).toContain('sharedkey');
       expect(keys2).toContain('sharedkey');
