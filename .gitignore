@@ -3,6 +3,7 @@ _work/
 dist/
 node_modules/
 CLAUDE.md
+AGENTS.md
 
 # Dependencies
 node_modules/

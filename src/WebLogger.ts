@@ -71,29 +71,6 @@ const isDevelopment = (): boolean => {
     return nodeEnv === 'development';
   }
 
-  // 3. 브라우저 환경 - 다양한 방법으로 개발 모드 감지
-  if (typeof window !== 'undefined') {
-    // 3-1. hostname 기반 (localhost, dev 도메인)
-    const hostname = window.location?.hostname;
-    if (hostname === 'localhost' || hostname.includes('dev') || hostname.includes('staging')) {
-      return true;
-    }
-
-    // 3-2. URL 파라미터 기반
-    const urlParams = new URLSearchParams(window.location?.search || '');
-    if (urlParams.get('debug') === 'true' || urlParams.get('dev') === 'true') {
-      return true;
-    }
-
-    // 3-3. localStorage 기반 설정
-    try {
-      return localStorage.getItem('app-log-debug') === 'true';
-    } catch (error) {
-      // localStorage 접근 불가능한 환경 (보안 정책, 시크릿 모드 등)
-      handleError(error, 'localStorage 접근 실패 (app-log-debug)');
-      return false;
-    }
-  }
 
   // 기본값: 프로덕션 모드
   return false;
