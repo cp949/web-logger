@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { WebLogger } from './WebLogger';
-import { convertToConsoleLogger, getLogLevel, setLogLevel } from './logger';
+import { convertToConsoleLogger, createPrefixedLogger, getLogLevel, setLogLevel } from './logger';
 
 describe('convertToConsoleLogger', () => {
   let logger: WebLogger;
@@ -261,5 +261,29 @@ describe('convertToConsoleLogger', () => {
       }
     });
   });
-});
 
+  describe('createPrefixedLogger', () => {
+    it('should create logger with provided prefix', () => {
+      const prefixedLogger = createPrefixedLogger('[UserList]');
+
+      prefixedLogger.info('hello users');
+
+      expect(consoleSpy.log).toHaveBeenCalled();
+      const [firstArg] = consoleSpy.log.mock.calls[0];
+      expect(String(firstArg)).toContain('[UserList]');
+    });
+
+    it('should respect shared log level settings', () => {
+      setLogLevel('error');
+      const prefixedLogger = createPrefixedLogger('[UserList]');
+
+      prefixedLogger.info('hello users');
+
+      expect(consoleSpy.log).not.toHaveBeenCalled();
+      expect(consoleSpy.info).not.toHaveBeenCalled();
+
+      prefixedLogger.error('still logs');
+      expect(consoleSpy.error).toHaveBeenCalled();
+    });
+  });
+});

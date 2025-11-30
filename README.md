@@ -201,6 +201,23 @@ logger.debug('User data:', userData, requestInfo);
 logger.error('Failed to fetch:', error, { endpoint, status });
 ```
 
+### 7. Component-scoped Prefix (React)
+
+```tsx
+import { useEffect, useMemo } from 'react';
+import { createPrefixedLogger } from '@cp949/web-logger';
+
+function UserList() {
+  const logger = useMemo(() => createPrefixedLogger('[UserList]'), []);
+
+  useEffect(() => {
+    logger.info('hello users'); // [UserList] hello users
+  }, [logger]);
+
+  return <div>UserList</div>;
+}
+```
+
 ## 🌍 SSR Support
 
 This library fully supports Server-Side Rendering (SSR) environments like Next.js, Remix, Nuxt, and other frameworks.

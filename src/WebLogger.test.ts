@@ -246,6 +246,32 @@ describe('WebLogger', () => {
     });
   });
 
+  describe('Prefix 확장', () => {
+    it('withPrefix로 새 prefix를 가진 로거를 생성해야 함', () => {
+      const childLogger = logger.withPrefix('[Child]');
+
+      childLogger.info('child message');
+
+      expect(consoleSpy.log).toHaveBeenCalled();
+      const [firstArg] = consoleSpy.log.mock.calls[0];
+      expect(String(firstArg)).toContain('[Child]');
+    });
+
+    it('새 인스턴스 생성 후에도 원본 prefix는 유지되어야 함', () => {
+      const childLogger = logger.withPrefix('[Child]');
+
+      childLogger.info('child message');
+      vi.clearAllMocks();
+
+      logger.info('parent message');
+
+      expect(consoleSpy.log).toHaveBeenCalled();
+      const [firstArg] = consoleSpy.log.mock.calls[0];
+      expect(String(firstArg)).toContain('[TEST]');
+      expect(String(firstArg)).not.toContain('[Child]');
+    });
+  });
+
   describe('순환 참조', () => {
     it('순환 참조를 처리해야 함', () => {
       const obj: any = { a: 1 };

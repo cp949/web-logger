@@ -201,6 +201,23 @@ logger.debug('User data:', userData, requestInfo);
 logger.error('Failed to fetch:', error, { endpoint, status });
 ```
 
+### 7. 컴포넌트별 Prefix (React)
+
+```tsx
+import { useEffect, useMemo } from 'react';
+import { createPrefixedLogger } from '@cp949/web-logger';
+
+function UserList() {
+  const logger = useMemo(() => createPrefixedLogger('[UserList]'), []);
+
+  useEffect(() => {
+    logger.info('hello users'); // [UserList] hello users
+  }, [logger]);
+
+  return <div>UserList</div>;
+}
+```
+
 ## 🌍 SSR 지원
 
 이 라이브러리는 Next.js, Nuxt 등의 서버 사이드 렌더링(SSR) 환경을 완벽하게 지원합니다.
@@ -629,4 +646,3 @@ MIT License - 자유롭게 사용하고 수정할 수 있습니다.
 - 빌드 타임 상수 주입으로 Tree Shaking 최적화
 - 로그 레벨 즉시 반영 (새로고침 불필요)
 - 34개 테스트 케이스 통과
-

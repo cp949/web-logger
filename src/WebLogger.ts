@@ -583,6 +583,18 @@ export class WebLogger {
   }
 
   /**
+   * 새 prefix를 사용하는 WebLogger 인스턴스 생성
+   *
+   * 전역 로그 레벨, 민감 정보 설정 등은 그대로 공유됩니다.
+   *
+   * @param prefix 로그 앞에 붙일 새 prefix
+   * @returns 새 WebLogger 인스턴스
+   */
+  withPrefix(prefix: string): WebLogger {
+    return new WebLogger(prefix);
+  }
+
+  /**
    * 현재 로그 레벨 가져오기 (동적 조회)
    * 
    * `setLogLevel()` 호출 시 즉시 반영됩니다.

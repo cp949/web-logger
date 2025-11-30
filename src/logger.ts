@@ -10,6 +10,16 @@ import { WebLogger, webLogger, type LogLevel, type LogMetadata } from './WebLogg
 export const logger = new WebLogger('[APP]');
 
 /**
+ * prefix가 지정된 새 WebLogger 인스턴스 생성 (컴포넌트/도메인 스코프용)
+ *
+ * @param prefix 로그 앞에 붙일 prefix (예: '[UserList]')
+ * @returns 지정된 prefix를 사용하는 WebLogger
+ */
+export const createPrefixedLogger = (prefix: string): WebLogger => {
+  return webLogger.withPrefix(prefix);
+};
+
+/**
  * 디버그 레벨 로깅 (가장 상세한 정보)
  * 
  * `console.debug()`와 동일한 시그니처를 제공합니다.
