@@ -28,9 +28,59 @@ const UNSAFE_KEYS = ['__proto__', 'constructor', 'prototype'];
 // 성능 최적화: 객체 sanitize 결과 캐싱 (WeakMap 활용)
 let sanitizeCache = new WeakMap<object, unknown>();
 
+/**
+ * 간단한 LRU 캐시 구현
+ * 최근 사용된 항목을 유지하고, 최대 크기를 초과하면 가장 오래된 항목을 제거합니다.
+ */
+class LRUCache<K, V> {
+  private cache: Map<K, V>;
+  private readonly maxSize: number;
+
+  constructor(maxSize: number = 1000) {
+    this.cache = new Map();
+    this.maxSize = maxSize;
+  }
+
+  get(key: K): V | undefined {
+    const value = this.cache.get(key);
+    if (value !== undefined) {
+      // 최근 사용된 항목을 맨 뒤로 이동 (LRU)
+      this.cache.delete(key);
+      this.cache.set(key, value);
+    }
+    return value;
+  }
+
+  set(key: K, value: V): void {
+    // 이미 존재하는 경우 제거 후 다시 추가
+    if (this.cache.has(key)) {
+      this.cache.delete(key);
+    } else if (this.cache.size >= this.maxSize) {
+      // 최대 크기 초과 시 가장 오래된 항목(첫 번째) 제거
+      const firstKey = this.cache.keys().next().value;
+      if (firstKey !== undefined) {
+        this.cache.delete(firstKey);
+      }
+    }
+    this.cache.set(key, value);
+  }
+
+  clear(): void {
+    this.cache.clear();
+  }
+
+  get size(): number {
+    return this.cache.size;
+  }
+}
+
+// 마스킹 값 캐시 (LRU, 최대 1000개)
+const maskValueCache = new LRUCache<string, string>(1000);
+
 // 민감 키 변경 시 캐시 무효화
 const clearSanitizeCache = (): void => {
   sanitizeCache = new WeakMap<object, unknown>();
+  maskValueCache.clear();
 };
 
 const isMetadataCandidate = (value: unknown): value is LogMetadata => {
@@ -614,6 +664,80 @@ function applyRegexWithTimeout(text: string, timeoutMs: number = REGEX_TIMEOUT_M
 }
 
 /**
+ * 민감한 값 부분 마스킹
+ *
+ * 키 기반 마스킹에서 사용되며, 전체 값을 `[REDACTED]`로 대체하는 대신
+ * 일부 문자를 표시하고 나머지를 별표로 마스킹합니다.
+ *
+ * **마스킹 전략:**
+ * - Email: 앞 3자 + `***` + `@` + 도메인 (예: `use***@example.com`)
+ * - Password 계열: 앞 2자 + `***` (예: `my***`)
+ * - 기타: 앞 2자 + `***` (예: `se***`)
+ *
+ * @param value 마스킹할 값 (모든 타입 가능)
+ * @param key 속성 키 (선택적, 마스킹 전략 결정에 사용)
+ * @returns 마스킹된 문자열
+ *
+ * @example
+ * ```typescript
+ * maskSensitiveValue('user@example.com', 'email'); // 'use***@example.com'
+ * maskSensitiveValue('mypassword123', 'password'); // 'my***'
+ * maskSensitiveValue('secretkey123', 'apiKey'); // 'se***'
+ * ```
+ */
+function maskSensitiveValue(value: unknown, key?: string): string {
+  // null이나 undefined는 특별 처리 (캐싱 불필요)
+  if (value === null || value === undefined) return '***';
+  
+  const str = String(value);
+  if (str.length === 0) return '***';
+
+  // 캐시 키 생성: value와 key를 조합
+  const cacheKey = `${str}|${key || ''}`;
+  
+  // 캐시에서 확인
+  const cached = maskValueCache.get(cacheKey);
+  if (cached !== undefined) {
+    return cached;
+  }
+
+  // 마스킹 수행
+  let masked: string;
+
+  // email 특별 처리
+  if (key && /email/i.test(key) && str.includes('@')) {
+    const [local, domain] = str.split('@');
+    if (!local || !domain) {
+      masked = '***'; // @ 앞이나 뒤가 없는 경우
+    } else if (local.length <= 3) {
+      masked = `***@${domain}`;
+    } else {
+      masked = `${local.slice(0, 3)}***@${domain}`;
+    }
+  }
+  // password 계열은 앞 2자만 표시
+  else if (key && /password|pwd|passwd/i.test(key)) {
+    if (str.length <= 2) {
+      masked = '***';
+    } else {
+      masked = `${str.slice(0, 2)}***`;
+    }
+  }
+  // 기타는 앞 2자 표시
+  else {
+    if (str.length <= 2) {
+      masked = '***';
+    } else {
+      masked = `${str.slice(0, 2)}***`;
+    }
+  }
+
+  // 캐시에 저장
+  maskValueCache.set(cacheKey, masked);
+  return masked;
+}
+
+/**
  * 로그 레벨이 활성화되어 있는지 확인
  *
  * 요청한 로그 레벨이 현재 설정된 로그 레벨에서 출력 가능한지 확인합니다.
@@ -751,12 +875,13 @@ function sanitizeLogData(
     const sanitized = new Map();
     for (const [key, value] of data.entries()) {
       const sanitizedKey = typeof key === 'string' && sensitiveKeysManager.isSensitive(key)
-        ? '[REDACTED]'
+        ? maskSensitiveValue(key, key)
         : sanitizeLogData(key, depth + 1, visited);
-      sanitized.set(
-        sanitizedKey,
-        sanitizeLogData(value, depth + 1, visited)
-      );
+      // Map의 값도 민감한 키인 경우 마스킹
+      const sanitizedValue = typeof key === 'string' && sensitiveKeysManager.isSensitive(key)
+        ? maskSensitiveValue(value, key)
+        : sanitizeLogData(value, depth + 1, visited);
+      sanitized.set(sanitizedKey, sanitizedValue);
     }
     return sanitized;
   }
@@ -802,7 +927,7 @@ function sanitizeLogData(
 
       // 민감한 키 확인 (전역 관리자 사용)
       if (sensitiveKeysManager.isSensitive(key)) {
-        sanitized[key] = '[REDACTED]';
+        sanitized[key] = maskSensitiveValue(value, key);
       } else {
         sanitized[key] = sanitizeLogData(value, depth + 1, visited);
       }

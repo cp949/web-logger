@@ -102,14 +102,14 @@ console.log(getLogLevel()); // 'debug'
 Web Logger는 명확한 우선순위를 가진 두 가지 데이터 마스킹 방식을 제공합니다:
 
 #### 키 기반 마스킹 (높은 우선순위)
-객체 속성 키가 민감한 키워드와 일치하면 값 전체가 `[REDACTED]`로 대체됩니다:
+객체 속성 키가 민감한 키워드와 일치하면 일부 문자만 표시하고 나머지를 별표로 마스킹합니다:
 
 ```typescript
-// 민감한 키는 값에 관계없이 완전히 마스킹됩니다
+// 민감한 키는 일부 문자만 표시하고 나머지를 마스킹합니다
 logDebug('User data:', {
-  password: '123',           // → password: '[REDACTED]'
-  email: 'not-an-email',     // → email: '[REDACTED]'
-  apiKey: 'key123'           // → apiKey: '[REDACTED]'
+  password: 'mypassword123',  // → password: 'my***'
+  email: 'user@example.com',  // → email: 'use***@example.com'
+  apiKey: 'key123456789'      // → apiKey: 'ke***'
 });
 ```
 
@@ -133,14 +133,17 @@ logDebug('Contact info:', {
 ```typescript
 // 키 기반 마스킹이 우선 적용됩니다
 const data = {
-  email: 'user@example.com',     // 키 매칭 → '[REDACTED]' ('[EMAIL]' 아님)
+  email: 'user@example.com',     // 키 매칭 → 'use***@example.com' ('[EMAIL]' 아님)
   userInfo: 'user@example.com'   // 키 미매칭 → '[EMAIL]'
 };
 ```
 
 #### 상세 마스킹 동작
 
-1. **키 기반 마스킹 (최우선 체크)**: 속성 키가 민감한 키워드와 일치하면, 값의 내용과 관계없이 전체 값이 `[REDACTED]`로 대체됩니다.
+1. **키 기반 마스킹 (최우선 체크)**: 속성 키가 민감한 키워드와 일치하면, 값이 부분 마스킹됩니다:
+   - Email: 앞 3자 + `***` + `@` + 도메인 (예: `use***@example.com`)
+   - Password: 앞 2자 + `***` (예: `my***`)
+   - 기타: 앞 2자 + `***` (예: `se***`)
 
 2. **패턴 기반 마스킹 (대체 방법)**: 키가 민감하지 않은 경우, 값에서 패턴을 검색합니다:
    - 이메일 주소: `user@example.com` → `[EMAIL]`
@@ -335,7 +338,7 @@ WEB_LOGGER_LOG_LEVEL=debug npm run dev
 
 ### 민감한 객체 속성
 
-다음 키를 가진 객체 속성은 자동으로 `[REDACTED]`로 대체됩니다:
+다음 키를 가진 객체 속성은 자동으로 부분 마스킹됩니다:
 - password, pwd, passwd
 - token, apiKey, api_key
 - accessToken, refreshToken, authToken
@@ -413,25 +416,25 @@ Web Logger는 Map, Set, Date, TypedArray, Buffer와 같은 JavaScript 내장 객
 
 ### Map 객체
 
-Map의 키와 값이 모두 sanitize됩니다. 키가 민감한 키워드와 일치하면 키 자체가 `[REDACTED]`로 대체됩니다:
+Map의 키와 값이 모두 sanitize됩니다. 키가 민감한 키워드와 일치하면 키 자체가 부분 마스킹됩니다:
 
 ```typescript
 import { logInfo } from '@cp949/web-logger';
 
 const userMap = new Map([
-  ['email', 'user@example.com'],      // 키 'email' → '[REDACTED]'
-  ['password', 'secret123'],          // 키 'password' → '[REDACTED]'
+  ['email', 'user@example.com'],      // 키 'email' → 'use***@example.com'
+  ['password', 'secret123'],          // 키 'password' → 'se***'
   ['username', 'john'],               // 일반 키는 보존
   ['contact', 'user@example.com']     // 값 마스킹: '[EMAIL]'
 ]);
 
 logInfo('사용자 데이터:', userMap);
-// 출력: 키가 '[REDACTED]'로 대체되고 값이 sanitize된 Map
+// 출력: 키가 부분 마스킹되고 값이 sanitize된 Map
 ```
 
 **중요 사항:**
 - Map 키는 민감한 키워드와 비교됩니다 (대소문자 구분 없음)
-- 민감한 키는 키 충돌을 방지하기 위해 `[REDACTED]`로 대체됩니다
+- 민감한 키는 키 충돌을 방지하기 위해 부분 마스킹됩니다
 - Map 값은 일반 객체 속성과 동일한 규칙으로 sanitize됩니다
 
 ### Set 객체

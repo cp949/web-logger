@@ -102,14 +102,14 @@ console.log(getLogLevel()); // 'debug'
 Web Logger provides two types of data masking with clear priority:
 
 #### Key-based Masking (Higher Priority)
-When object property keys match sensitive keywords, the entire value is replaced with `[REDACTED]`:
+When object property keys match sensitive keywords, the value is partially masked showing only a few characters:
 
 ```typescript
-// Sensitive keys are completely masked regardless of value
+// Sensitive keys are partially masked showing first few characters
 logDebug('User data:', {
-  password: '123',           // → password: '[REDACTED]'
-  email: 'not-an-email',     // → email: '[REDACTED]'
-  apiKey: 'key123'           // → apiKey: '[REDACTED]'
+  password: 'mypassword123',  // → password: 'my***'
+  email: 'user@example.com', // → email: 'use***@example.com'
+  apiKey: 'key123456789'     // → apiKey: 'ke***'
 });
 ```
 
@@ -133,14 +133,17 @@ logDebug('Contact info:', {
 ```typescript
 // Key-based masking takes precedence
 const data = {
-  email: 'user@example.com',     // Key matches → '[REDACTED]' (not '[EMAIL]')
+  email: 'user@example.com',     // Key matches → 'use***@example.com' (not '[EMAIL]')
   userInfo: 'user@example.com'   // Key doesn't match → '[EMAIL]'
 };
 ```
 
 #### Detailed Masking Behavior
 
-1. **Key-based masking (first check)**: If the property key matches a sensitive keyword, the entire value is replaced with `[REDACTED]`, regardless of the value content.
+1. **Key-based masking (first check)**: If the property key matches a sensitive keyword, the value is partially masked:
+   - Email: First 3 characters + `***` + `@` + domain (e.g., `use***@example.com`)
+   - Password: First 2 characters + `***` (e.g., `my***`)
+   - Others: First 2 characters + `***` (e.g., `se***`)
 
 2. **Pattern-based masking (fallback)**: If the key is not sensitive, the value is scanned for patterns:
    - Email addresses: `user@example.com` → `[EMAIL]`

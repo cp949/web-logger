@@ -171,7 +171,7 @@ describe('WebLogger', () => {
       logger.debug('Data:', data);
       expect(consoleSpy.table).toHaveBeenCalled();
       const secondTableData = consoleSpy.table.mock.calls[0][0] as any;
-      expect(secondTableData.customField).toBe('[REDACTED]');
+      expect(secondTableData.customField).toBe('se***');
     });
 
     it('단일 객체 메시지를 구조화된 형태로 출력해야 함', () => {
@@ -182,7 +182,104 @@ describe('WebLogger', () => {
       expect(consoleSpy.table).toHaveBeenCalled();
       const tableData = consoleSpy.table.mock.calls[0][0] as any;
       expect(tableData.user).toBe('john');
-      expect(tableData.password).toBe('[REDACTED]');
+      expect(tableData.password).toBe('se***');
+    });
+
+    it('email은 앞 3자 + *** + @ + 도메인으로 마스킹해야 함', () => {
+      const payload = { email: 'user@example.com', userEmail: 'admin@test.co.kr' };
+
+      logger.info(payload);
+
+      expect(consoleSpy.table).toHaveBeenCalled();
+      const tableData = consoleSpy.table.mock.calls[0][0] as any;
+      expect(tableData.email).toBe('use***@example.com');
+      expect(tableData.userEmail).toBe('adm***@test.co.kr');
+    });
+
+    it('짧은 email은 ***@도메인으로 마스킹해야 함', () => {
+      const payload = { email: 'ab@test.com' };
+
+      logger.info(payload);
+
+      expect(consoleSpy.table).toHaveBeenCalled();
+      const tableData = consoleSpy.table.mock.calls[0][0] as any;
+      expect(tableData.email).toBe('***@test.com');
+    });
+
+    it('password는 앞 2자 + ***로 마스킹해야 함', () => {
+      const payload = { password: 'mypassword123', pwd: 'secret', passwd: 'ab' };
+
+      logger.info(payload);
+
+      expect(consoleSpy.table).toHaveBeenCalled();
+      const tableData = consoleSpy.table.mock.calls[0][0] as any;
+      expect(tableData.password).toBe('my***');
+      expect(tableData.pwd).toBe('se***');
+      expect(tableData.passwd).toBe('***');
+    });
+
+    it('짧은 문자열은 ***로만 마스킹해야 함', () => {
+      const payload = { apiKey: 'ab', token: 'x' };
+
+      logger.info(payload);
+
+      expect(consoleSpy.table).toHaveBeenCalled();
+      const tableData = consoleSpy.table.mock.calls[0][0] as any;
+      expect(tableData.apiKey).toBe('***');
+      expect(tableData.token).toBe('***');
+    });
+
+    it('비문자열 값도 문자열로 변환 후 마스킹해야 함', () => {
+      const payload = { password: 12345, email: null, apiKey: true };
+
+      logger.info(payload);
+
+      expect(consoleSpy.table).toHaveBeenCalled();
+      const tableData = consoleSpy.table.mock.calls[0][0] as any;
+      expect(tableData.password).toBe('12***');
+      expect(tableData.email).toBe('***');
+      expect(tableData.apiKey).toBe('tr***');
+    });
+
+    it('같은 값의 마스킹 결과가 캐시되어야 함', () => {
+      const email = 'user@example.com';
+      const password = 'mypassword123';
+      
+      // 첫 번째 로깅
+      logger.info('First', { email, password });
+      expect(consoleSpy.table).toHaveBeenCalled();
+      const firstData = consoleSpy.table.mock.calls[0][0] as any;
+      expect(firstData.email).toBe('use***@example.com');
+      expect(firstData.password).toBe('my***');
+
+      vi.clearAllMocks();
+
+      // 두 번째 로깅 (같은 값)
+      logger.info('Second', { email, password });
+      expect(consoleSpy.table).toHaveBeenCalled();
+      const secondData = consoleSpy.table.mock.calls[0][0] as any;
+      // 캐시에서 가져온 결과도 동일해야 함
+      expect(secondData.email).toBe('use***@example.com');
+      expect(secondData.password).toBe('my***');
+    });
+
+    it('다른 키에 같은 값이 있어도 다른 마스킹 결과를 반환해야 함', () => {
+      const value = 'test@example.com';
+      
+      // email 키로 마스킹
+      logger.info('Email', { email: value });
+      expect(consoleSpy.table).toHaveBeenCalled();
+      const emailData = consoleSpy.table.mock.calls[0][0] as any;
+      expect(emailData.email).toBe('tes***@example.com');
+
+      vi.clearAllMocks();
+
+      // 다른 키로 같은 값 마스킹
+      logger.info('Other', { apiKey: value });
+      expect(consoleSpy.table).toHaveBeenCalled();
+      const apiKeyData = consoleSpy.table.mock.calls[0][0] as any;
+      // 키가 다르면 마스킹 결과도 다름
+      expect(apiKeyData.apiKey).toBe('te***');
     });
   });
 
@@ -195,7 +292,7 @@ describe('WebLogger', () => {
 
       expect(consoleSpy.table).toHaveBeenCalled();
       const tableData = consoleSpy.table.mock.calls[0][0] as any;
-      expect(tableData.custom).toBe('[REDACTED]');
+      expect(tableData.custom).toBe('se***');
       expect(tableData.password).toBe('visible');
     });
 
@@ -1012,7 +1109,7 @@ describe('WebLogger', () => {
       const data = { customSecret: 'secret123', apiSecret: 'key456', normalKey: 'value' };
       logger.debug('User data:', data);
 
-      // sanitizeLogData가 호출되어 customSecret과 apiSecret이 [REDACTED]로 변경되었는지 확인
+      // sanitizeLogData가 호출되어 customSecret과 apiSecret이 부분 마스킹되었는지 확인
       // 실제로는 console에 출력된 내용을 확인하기 어려우므로,
       // getSensitiveKeys로 추가된 키가 있는지 확인
       const keys = getSensitiveKeys();

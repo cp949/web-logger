@@ -138,7 +138,7 @@ console.log(getLogLevel()); // 'debug'
 
 ```typescript
 logger.info({ user: 'alice', password: 'secret' });
-// Renders as a structured table with masked fields (e.g., password → [REDACTED])
+// Renders as a structured table with masked fields (e.g., password → my***)
 
 // Arrays/Maps/Sets stay structured too, with circular references shown as [CIRCULAR].
 logger.debug('Payload:', new Map([['self', map]]));
@@ -149,14 +149,14 @@ logger.debug('Payload:', new Map([['self', map]]));
 Web Logger provides two types of data masking with clear priority:
 
 #### Key-based Masking (Higher Priority)
-When object property keys match sensitive keywords, the entire value is replaced with `[REDACTED]`:
+When object property keys match sensitive keywords, the value is partially masked showing only a few characters:
 
 ```typescript
-// Sensitive keys are completely masked regardless of value
+// Sensitive keys are partially masked showing first few characters
 logDebug('User data:', {
-  password: '123',           // → password: '[REDACTED]'
-  email: 'not-an-email',     // → email: '[REDACTED]'
-  apiKey: 'key123'           // → apiKey: '[REDACTED]'
+  password: 'mypassword123',  // → password: 'my***'
+  email: 'user@example.com', // → email: 'use***@example.com'
+  apiKey: 'key123456789'     // → apiKey: 'ke***'
 });
 ```
 
@@ -180,14 +180,17 @@ logDebug('Contact info:', {
 ```typescript
 // Key-based masking takes precedence
 const data = {
-  email: 'user@example.com',     // Key matches → '[REDACTED]' (not '[EMAIL]')
+  email: 'user@example.com',     // Key matches → 'use***@example.com' (not '[EMAIL]')
   userInfo: 'user@example.com'   // Key doesn't match → '[EMAIL]'
 };
 ```
 
 #### Detailed Masking Behavior
 
-1. **Key-based masking (first check)**: If the property key matches a sensitive keyword, the entire value is replaced with `[REDACTED]`, regardless of the value content.
+1. **Key-based masking (first check)**: If the property key matches a sensitive keyword, the value is partially masked:
+   - Email: First 3 characters + `***` + `@` + domain (e.g., `use***@example.com`)
+   - Password: First 2 characters + `***` (e.g., `my***`)
+   - Others: First 2 characters + `***` (e.g., `se***`)
 
 2. **Pattern-based masking (fallback)**: If the key is not sensitive, the value is scanned for patterns:
    - Email addresses: `user@example.com` → `[EMAIL]`
@@ -507,7 +510,7 @@ Immediately applied to all WebLogger instances.
 
 ### Sensitive Object Properties
 
-Object properties with the following keys are automatically replaced with `[REDACTED]`:
+Object properties with the following keys are automatically partially masked:
 - password, pwd, passwd
 - token, apiKey, api_key
 - accessToken, refreshToken, authToken
@@ -549,25 +552,25 @@ Web Logger properly handles JavaScript built-in objects like Map, Set, Date, Typ
 
 ### Map Objects
 
-Map keys and values are both sanitized. If a key matches a sensitive keyword, the key itself is replaced with `[REDACTED]`:
+Map keys and values are both sanitized. If a key matches a sensitive keyword, the key itself is partially masked:
 
 ```typescript
 import { logInfo } from '@cp949/web-logger';
 
 const userMap = new Map([
-  ['email', 'user@example.com'],      // Key 'email' → '[REDACTED]'
-  ['password', 'secret123'],          // Key 'password' → '[REDACTED]'
+  ['email', 'user@example.com'],      // Key 'email' → 'use***@example.com'
+  ['password', 'secret123'],          // Key 'password' → 'se***'
   ['username', 'john'],               // Normal key preserved
   ['contact', 'user@example.com']     // Value masked: '[EMAIL]'
 ]);
 
 logInfo('User data:', userMap);
-// Output: Map with keys '[REDACTED]' and sanitized values
+// Output: Map with partially masked keys and sanitized values
 ```
 
 **Important Notes:**
 - Map keys are checked against sensitive keywords (case-insensitive)
-- If a key is sensitive, it's replaced with `[REDACTED]` to prevent key collision
+- If a key is sensitive, it's partially masked to prevent key collision
 - Map values are sanitized using the same rules as regular object properties
 
 ### Set Objects
