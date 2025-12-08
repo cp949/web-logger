@@ -59,11 +59,11 @@ import { useWebLogger } from '@cp949/web-logger-react';
 
 function MyComponent() {
   const logger = useWebLogger('[MyComponent]');
-  
+
   useEffect(() => {
     logger.info('Component mounted');
   }, [logger]);
-  
+
   return <div>My Component</div>;
 }
 ```
@@ -74,10 +74,10 @@ The logger automatically filters sensitive data:
 
 ```typescript
 logInfo('User data:', {
-  email: 'user@example.com',  // → [EMAIL]
-  phone: '010-1234-5678',     // → [PHONE]
-  password: 'secret123',      // → [REDACTED]
-  card: '1234-5678-9012-3456' // → [CARD]
+  email: 'user@example.com', // → [EMAIL]
+  phone: '010-1234-5678', // → [PHONE]
+  password: 'secret123', // → [REDACTED]
+  card: '1234-5678-9012-3456', // → [CARD]
 });
 ```
 
@@ -92,7 +92,7 @@ setLogLevel('debug'); // All logs will be shown
 
 ## Tech Stack
 
-- **Next.js**: 16.0.5
+- **Next.js**: 16.0.8
 - **React**: 19
 - **TypeScript**: 5.9.3
 - **@cp949/web-logger**: Workspace dependency
@@ -113,4 +113,3 @@ apps/logger-demo/
 ├── tsconfig.json
 └── next.config.ts
 ```
-

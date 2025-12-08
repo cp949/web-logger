@@ -1,6 +1,11 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { WebLogger } from '../src/WebLogger';
-import { convertToConsoleLogger, createPrefixedLogger, getLogLevel, setLogLevel } from '../src/logger';
+import {
+  convertToConsoleLogger,
+  createPrefixedLogger,
+  getLogLevel,
+  setLogLevel,
+} from '../src/logger';
 
 describe('convertToConsoleLogger', () => {
   let logger: WebLogger;
@@ -18,7 +23,7 @@ describe('convertToConsoleLogger', () => {
         delete storage[key];
       }),
       clear: vi.fn(() => {
-        Object.keys(storage).forEach(key => delete storage[key]);
+        Object.keys(storage).forEach((key) => delete storage[key]);
       }),
     };
     Object.defineProperty(window, 'localStorage', {
@@ -75,7 +80,7 @@ describe('convertToConsoleLogger', () => {
 
   it('console-compatible 객체를 반환해야 함', () => {
     const consoleCompatible = convertToConsoleLogger(logger);
-    
+
     expect(consoleCompatible).toBeDefined();
     expect(typeof consoleCompatible.debug).toBe('function');
     expect(typeof consoleCompatible.info).toBe('function');
@@ -86,28 +91,34 @@ describe('convertToConsoleLogger', () => {
 
   it('debug 메서드가 console.debug와 동일한 시그니처로 동작해야 함', () => {
     const consoleCompatible = convertToConsoleLogger(logger);
-    
+
     // 인자 없음
     consoleCompatible.debug?.();
     // WebLogger는 debug/info일 때 console.log를 사용할 수 있으므로 둘 다 확인
-    expect(consoleSpy.debug.mock.calls.length + consoleSpy.log.mock.calls.length).toBeGreaterThan(0);
-    
+    expect(consoleSpy.debug.mock.calls.length + consoleSpy.log.mock.calls.length).toBeGreaterThan(
+      0,
+    );
+
     // 단일 인자
     consoleSpy.debug.mockClear();
     consoleSpy.log.mockClear();
     consoleCompatible.debug?.('message');
-    expect(consoleSpy.debug.mock.calls.length + consoleSpy.log.mock.calls.length).toBeGreaterThan(0);
-    
+    expect(consoleSpy.debug.mock.calls.length + consoleSpy.log.mock.calls.length).toBeGreaterThan(
+      0,
+    );
+
     // 여러 인자
     consoleSpy.debug.mockClear();
     consoleSpy.log.mockClear();
     consoleCompatible.debug?.('message', { data: 1 }, 'extra');
-    expect(consoleSpy.debug.mock.calls.length + consoleSpy.log.mock.calls.length).toBeGreaterThan(0);
+    expect(consoleSpy.debug.mock.calls.length + consoleSpy.log.mock.calls.length).toBeGreaterThan(
+      0,
+    );
   });
 
   it('info 메서드가 console.info와 동일한 시그니처로 동작해야 함', () => {
     const consoleCompatible = convertToConsoleLogger(logger);
-    
+
     consoleSpy.info.mockClear();
     consoleSpy.log.mockClear();
     consoleCompatible.info?.('info message', { key: 'value' });
@@ -117,78 +128,80 @@ describe('convertToConsoleLogger', () => {
 
   it('warn 메서드가 console.warn과 동일한 시그니처로 동작해야 함', () => {
     const consoleCompatible = convertToConsoleLogger(logger);
-    
+
     consoleCompatible.warn?.('warning message', { error: true });
     expect(consoleSpy.warn).toHaveBeenCalled();
   });
 
   it('error 메서드가 console.error와 동일한 시그니처로 동작해야 함', () => {
     const consoleCompatible = convertToConsoleLogger(logger);
-    
+
     consoleCompatible.error?.('error message', new Error('test'));
     expect(consoleSpy.error).toHaveBeenCalled();
   });
 
   it('log 메서드가 console.log와 동일한 시그니처로 동작해야 함', () => {
     const consoleCompatible = convertToConsoleLogger(logger);
-    
+
     consoleCompatible.log?.('log message', 123, true);
     expect(consoleSpy.log).toHaveBeenCalled();
   });
 
   it('group 메서드가 동작해야 함', () => {
     const consoleCompatible = convertToConsoleLogger(logger);
-    
+
     consoleCompatible.group?.('Group Title');
     expect(consoleSpy.group).toHaveBeenCalled();
-    
+
     consoleCompatible.groupEnd?.();
     expect(consoleSpy.groupEnd).toHaveBeenCalled();
   });
 
   it('group 메서드가 메타데이터를 받을 수 있어야 함', () => {
     const consoleCompatible = convertToConsoleLogger(logger);
-    
+
     consoleCompatible.group?.('Group Title', { key: 'value' });
     expect(consoleSpy.group).toHaveBeenCalled();
   });
 
   it('time과 timeEnd 메서드가 동작해야 함', () => {
     const consoleCompatible = convertToConsoleLogger(logger);
-    
+
     consoleCompatible.time?.('label');
     expect(consoleSpy.time).toHaveBeenCalled();
-    
+
     consoleCompatible.timeEnd?.('label');
     expect(consoleSpy.timeEnd).toHaveBeenCalled();
   });
 
   it('여러 인자를 받을 수 있어야 함', () => {
     const consoleCompatible = convertToConsoleLogger(logger);
-    
+
     const obj1 = { a: 1 };
     const obj2 = { b: 2 };
     const obj3 = { c: 3 };
-    
+
     consoleCompatible.debug?.('message', obj1, obj2, obj3);
     expect(consoleSpy.debug).toHaveBeenCalled();
   });
 
   it('인자 없이 호출할 수 있어야 함', () => {
     const consoleCompatible = convertToConsoleLogger(logger);
-    
+
     consoleSpy.debug.mockClear();
     consoleSpy.info.mockClear();
     consoleSpy.log.mockClear();
-    
+
     consoleCompatible.debug?.();
     consoleCompatible.info?.();
     consoleCompatible.warn?.();
     consoleCompatible.error?.();
     consoleCompatible.log?.();
-    
+
     // debug/info는 console.log를 사용할 수 있으므로 둘 다 확인
-    expect(consoleSpy.debug.mock.calls.length + consoleSpy.log.mock.calls.length).toBeGreaterThan(0);
+    expect(consoleSpy.debug.mock.calls.length + consoleSpy.log.mock.calls.length).toBeGreaterThan(
+      0,
+    );
     expect(consoleSpy.info.mock.calls.length + consoleSpy.log.mock.calls.length).toBeGreaterThan(0);
     expect(consoleSpy.warn).toHaveBeenCalled();
     expect(consoleSpy.error).toHaveBeenCalled();
@@ -197,14 +210,14 @@ describe('convertToConsoleLogger', () => {
 
   it('로그 레벨 제어가 적용되어야 함', () => {
     const consoleCompatible = convertToConsoleLogger(logger);
-    
+
     logger.setLogLevel('error');
-    
+
     consoleCompatible.debug?.('debug message');
     consoleCompatible.info?.('info message');
     consoleCompatible.warn?.('warn message');
     consoleCompatible.error?.('error message');
-    
+
     // debug, info, warn은 호출되지 않아야 함
     expect(consoleSpy.debug).not.toHaveBeenCalled();
     expect(consoleSpy.info).not.toHaveBeenCalled();
@@ -217,7 +230,7 @@ describe('convertToConsoleLogger', () => {
     it('should return current log level', () => {
       logger.setLogLevel('warn');
       expect(getLogLevel()).toBe('warn');
-      
+
       logger.setLogLevel('debug');
       expect(getLogLevel()).toBe('debug');
     });
@@ -227,7 +240,7 @@ describe('convertToConsoleLogger', () => {
     it('should set log level via setLogLevel function', () => {
       setLogLevel('error');
       expect(getLogLevel()).toBe('error');
-      
+
       setLogLevel('info');
       expect(getLogLevel()).toBe('info');
     });
@@ -236,7 +249,7 @@ describe('convertToConsoleLogger', () => {
   describe('convertToConsoleLogger - additional methods', () => {
     it('should call console.profile when available', () => {
       const consoleCompatible = convertToConsoleLogger(logger);
-      
+
       if (console.profile) {
         consoleCompatible.profile!('TestProfile');
         expect(vi.mocked(console.profile)).toHaveBeenCalledWith('TestProfile');
@@ -245,7 +258,7 @@ describe('convertToConsoleLogger', () => {
 
     it('should call console.profileEnd when available', () => {
       const consoleCompatible = convertToConsoleLogger(logger);
-      
+
       if (console.profileEnd) {
         consoleCompatible.profileEnd!('TestProfile');
         expect(vi.mocked(console.profileEnd)).toHaveBeenCalledWith('TestProfile');
@@ -254,7 +267,7 @@ describe('convertToConsoleLogger', () => {
 
     it('should call console.timeStamp when available', () => {
       const consoleCompatible = convertToConsoleLogger(logger);
-      
+
       if (console.timeStamp) {
         consoleCompatible.timeStamp!('TestLabel');
         expect(vi.mocked(console.timeStamp)).toHaveBeenCalledWith('TestLabel');

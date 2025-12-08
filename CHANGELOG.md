@@ -8,43 +8,50 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [1.0.3] - 2025-11-30
 
 ### Changed
+
 - Improved documentation accuracy and completeness
 - Reorganized test file structure (moved from `src/` to `tests/` directory)
 - Enhanced bundle size documentation with accurate metrics
 
 ### Fixed
+
 - Fixed log level priority documentation (runtime globals have highest priority)
 - Updated sensitive keys documentation to match implementation (28 keys total)
 - Corrected BUNDLE_SIZE.md by removing references to non-existent features
 - Fixed test import paths after directory reorganization
 
 ### Documentation
+
 - Added complete API documentation for all public functions
-- Clarified build-time constant usage (__INITIAL_LOG_LEVEL__)
+- Clarified build-time constant usage (**INITIAL_LOG_LEVEL**)
 - Enhanced Korean documentation (README.ko.md)
 - Added comprehensive CHANGELOG files for each package
 
 ## [1.0.2] - 2025-11-30
 
 ### Added
+
 - Component-scoped prefix support with `withPrefix()` method
 - Comprehensive ROADMAP.md for future development planning
 - Complete API documentation for all public functions
 - Korean documentation (README.ko.md)
 
 ### Changed
+
 - Updated React adapter package to version 1.0.2 (from 1.0.0)
 - Moved test files from `src/` to `tests/` directory for better organization
 - Enhanced documentation with correct log level priority information
 - Improved bundle size documentation with accurate metrics
 
 ### Fixed
+
 - Fixed log level priority documentation (runtime globals have highest priority)
 - Updated sensitive keys documentation to match implementation (28 keys total)
 - Corrected BUNDLE_SIZE.md removing non-existent features
 - Fixed test import paths after directory reorganization
 
 ### Security
+
 - Documented all 28 default sensitive keys for transparency
 - Added documentation for ReDoS attack prevention mechanisms
 - Clarified prototype pollution prevention features
@@ -52,6 +59,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [1.0.1] - 2024-11-29
 
 ### Added
+
 - Initial release with comprehensive documentation improvements
 - SSR/CSR compatibility documentation
 - Tree-shaking optimization support
@@ -59,10 +67,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [1.0.0] - 2024-11-28
 
 ### Added
+
 - Core logging functionality with automatic sensitive data filtering
 - Two-tier masking priority system (key-based → pattern-based)
-- Build-time constants support (__INITIAL_LOG_LEVEL__)
-- Runtime global variables (globalThis.__WEB_LOGGER_LOG_LEVEL__)
+- Build-time constants support (**INITIAL_LOG_LEVEL**)
+- Runtime global variables (globalThis.**WEB_LOGGER_LOG_LEVEL**)
 - Singleton pattern for global managers
 - ReDoS attack prevention
 - Prototype pollution prevention
@@ -71,6 +80,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - React hooks adapter (@cp949/web-logger-react)
 
 ### Features
+
 - **Automatic sensitive data filtering**: 28 default sensitive keys
 - **Pattern-based filtering**: Email, phone, SSN, credit card patterns
 - **Runtime log level control**: Dynamic log level adjustment

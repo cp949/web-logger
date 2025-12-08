@@ -37,10 +37,9 @@ describe('useWebLogger', () => {
   });
 
   it('should memoize logger instance when prefix does not change', () => {
-    const { result, rerender } = renderHook(
-      ({ prefix }) => useWebLogger(prefix),
-      { initialProps: { prefix: '[UserList]' } }
-    );
+    const { result, rerender } = renderHook(({ prefix }) => useWebLogger(prefix), {
+      initialProps: { prefix: '[UserList]' },
+    });
 
     const firstInstance = result.current;
     rerender({ prefix: '[UserList]' });
@@ -49,10 +48,9 @@ describe('useWebLogger', () => {
   });
 
   it('should create new logger instance when prefix changes', () => {
-    const { result, rerender } = renderHook(
-      ({ prefix }) => useWebLogger(prefix),
-      { initialProps: { prefix: '[UserList]' } }
-    );
+    const { result, rerender } = renderHook(({ prefix }) => useWebLogger(prefix), {
+      initialProps: { prefix: '[UserList]' },
+    });
 
     const firstInstance = result.current;
     rerender({ prefix: '[UserDetails]' });
@@ -61,10 +59,9 @@ describe('useWebLogger', () => {
   });
 
   it('should handle undefined prefix correctly', () => {
-    const { result, rerender } = renderHook(
-      ({ prefix }) => useWebLogger(prefix),
-      { initialProps: { prefix: undefined } }
-    );
+    const { result, rerender } = renderHook(({ prefix }) => useWebLogger(prefix), {
+      initialProps: { prefix: undefined },
+    });
 
     const firstInstance = result.current;
     rerender({ prefix: undefined });
@@ -73,10 +70,9 @@ describe('useWebLogger', () => {
   });
 
   it('should create new logger when prefix changes from undefined to defined', () => {
-    const { result, rerender } = renderHook(
-      ({ prefix }) => useWebLogger(prefix),
-      { initialProps: { prefix: undefined } }
-    );
+    const { result, rerender } = renderHook(({ prefix }) => useWebLogger(prefix), {
+      initialProps: { prefix: undefined },
+    });
 
     const firstInstance = result.current;
     rerender({ prefix: '[UserList]' });
@@ -85,10 +81,9 @@ describe('useWebLogger', () => {
   });
 
   it('should create new logger when prefix changes from defined to undefined', () => {
-    const { result, rerender } = renderHook(
-      ({ prefix }) => useWebLogger(prefix),
-      { initialProps: { prefix: '[UserList]' } }
-    );
+    const { result, rerender } = renderHook(({ prefix }) => useWebLogger(prefix), {
+      initialProps: { prefix: '[UserList]' },
+    });
 
     const firstInstance = result.current;
     rerender({ prefix: undefined });

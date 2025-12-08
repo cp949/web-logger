@@ -13,12 +13,14 @@
 ## ✨ 주요 특징
 
 ### 🔐 보안 우선
+
 - 민감한 정보 자동 필터링: 이메일, 전화번호, 카드번호, JWT 토큰, 패스워드 등 자동 마스킹
 - 프로토타입 오염 방지: `__proto__`, `constructor` 등 위험한 키 필터링
 - ReDoS 공격 방지: 문자열 길이 제한 (5,000자) 및 정규식 실행 시간 제한 (100ms)
 - 순환 참조 안전 처리: 최대 깊이 10단계 제한
 
 ### ⚡ 성능 최적화
+
 - Tree Shaking 지원: 빌드 타임 상수 주입으로 데드 코드 제거 가능
 - 정규식 캐싱: 컴파일된 정규식 재사용으로 성능 향상
 - 조건부 로깅: 로그 레벨 체크를 먼저 수행하여 불필요한 처리 방지
@@ -27,12 +29,14 @@
 - SSR/CSR 호환: 서버 사이드 렌더링과 클라이언트 사이드 환경 모두에서 완벽 작동
 
 ### 🎨 개발자 경험
+
 - 컬러풀한 콘솔 출력: 로그 레벨별 색상 구분
 - 타임스탬프 자동 추가: HH:MM:SS 형식
 - 구조화된 데이터 표시: `console.table`을 활용한 메타데이터 표시
 - 100% 타입 안전: TypeScript 완벽 지원, any 타입 없음
 
 ### 🛠️ 유연한 설정
+
 - 다양한 로그 레벨: debug, info, warn, error, none
 - 런타임 레벨 제어: 프로덕션에서도 동적 변경 가능
 - 다중 설정 소스: 환경변수, 전역변수
@@ -149,39 +153,42 @@ logger.debug('Payload:', new Map([['self', map]]));
 Web Logger는 명확한 우선순위를 가진 두 가지 데이터 마스킹 방식을 제공합니다:
 
 #### 키 기반 마스킹 (높은 우선순위)
+
 객체 속성 키가 민감한 키워드와 일치하면 값 전체가 `[REDACTED]`로 대체됩니다:
 
 ```typescript
 // 민감한 키는 값에 관계없이 완전히 마스킹됩니다
 logDebug('User data:', {
-  password: '123',           // → password: '[REDACTED]'
-  email: 'not-an-email',     // → email: '[REDACTED]'
-  apiKey: 'key123'           // → apiKey: '[REDACTED]'
+  password: '123', // → password: '[REDACTED]'
+  email: 'not-an-email', // → email: '[REDACTED]'
+  apiKey: 'key123', // → apiKey: '[REDACTED]'
 });
 ```
 
 **민감한 키 목록:** `password`, `passwd`, `pass`, `secret`, `token`, `apiKey`, `api_key`, `auth`, `authorization`, `cookie`, `session`, `private`, `ssn`, `email`, `phone`, `tel`, `mobile`, `card`, `credit`, `cvv`, `cvc`
 
 #### 패턴 기반 마스킹 (낮은 우선순위)
+
 민감하지 않은 키의 경우, 값을 검사하여 패턴에 따라 마스킹합니다:
 
 ```typescript
 // 일반 속성 값에서 패턴 감지
 logDebug('Contact info:', {
-  userEmail: 'user@example.com',        // → userEmail: '[EMAIL]'
-  description: 'Call 010-1234-5678',    // → description: 'Call [PHONE]'
-  payment: '1234-5678-9012-3456'        // → payment: '[CARD]'
+  userEmail: 'user@example.com', // → userEmail: '[EMAIL]'
+  description: 'Call 010-1234-5678', // → description: 'Call [PHONE]'
+  payment: '1234-5678-9012-3456', // → payment: '[CARD]'
 });
 ```
 
 **감지 패턴:** 이메일 주소 → `[EMAIL]`, 신용카드 → `[CARD]`, 전화번호 → `[PHONE]`, JWT 토큰 → `[JWT]`, API 키 → `[APIKEY]`, 비밀번호 → `[PASSWORD]`
 
 #### 우선순위 예시
+
 ```typescript
 // 키 기반 마스킹이 우선 적용됩니다
 const data = {
-  email: 'user@example.com',     // 키 매칭 → '[REDACTED]' ('[EMAIL]' 아님)
-  userInfo: 'user@example.com'   // 키 미매칭 → '[EMAIL]'
+  email: 'user@example.com', // 키 매칭 → '[REDACTED]' ('[EMAIL]' 아님)
+  userInfo: 'user@example.com', // 키 미매칭 → '[EMAIL]'
 };
 ```
 
@@ -206,7 +213,12 @@ const data = {
 ### 민감 키 Cookbook
 
 ```typescript
-import { addSensitiveKey, removeSensitiveKey, resetSensitiveKeys, getSensitiveKeys } from '@cp949/web-logger';
+import {
+  addSensitiveKey,
+  removeSensitiveKey,
+  resetSensitiveKeys,
+  getSensitiveKeys,
+} from '@cp949/web-logger';
 
 // 커스텀 키 추가 (즉시 적용)
 addSensitiveKey('customSecret');
@@ -268,12 +280,14 @@ typedLogger.info('사용자', { userId: 'u2', email: 123 });
 > `setSensitivePatterns`는 기본 패턴을 모두 대체하며, 기본 패턴을 제거하면 경고를 출력합니다. 기본을 유지하고 확장하려면 `addSensitivePatterns`를 사용하세요.
 
 ### 번들러 팁 (Vite / webpack / Rspack)
+
 - 트리 쉐이킹을 위해 빌드 타임 상수를 정의하세요: `__DEV__`, `__NODE_ENV__`, `__INITIAL_LOG_LEVEL__`, 그리고 `process.env.NODE_ENV` / `WEB_LOGGER_LOG_LEVEL` 대체.
 - ESM 트리 쉐이킹이 켜져 있는지 확인(`sideEffects: false` 또는 파일별 설정)해 사용하지 않는 코드가 제거되도록 합니다.
 - 브라우저 전용이므로 isomorphic 코드에서는 `typeof window !== 'undefined'`로 가드하세요.
 - 번들러에서 `process.env`를 별도 처리한다면 define 설정이 중복/충돌하지 않도록 맞춰주세요.
 
 **Vite define 예시**
+
 ```ts
 // vite.config.ts
 import { defineConfig } from 'vite';
@@ -290,6 +304,7 @@ export default defineConfig({
 ```
 
 **webpack/Rspack define 예시**
+
 ```js
 // webpack.config.js
 const webpack = require('webpack');
@@ -380,6 +395,7 @@ function UserList() {
 ### 작동 원리
 
 환경을 자동으로 감지하여 적절한 전역 객체를 사용합니다:
+
 - **브라우저(CSR)**: `window.__WEB_LOGGER_LOG_LEVEL__` 사용
 - **서버(SSR)**: `globalThis.__WEB_LOGGER_LOG_LEVEL__` 사용
 
@@ -430,24 +446,31 @@ if (typeof window !== 'undefined') {
 로그 레벨은 다음 우선순위로 결정됩니다:
 
 1. 빌드 타임 환경 변수 (최우선, 빌드 시 주입)
+
 ```bash
 WEB_LOGGER_LOG_LEVEL=debug npm run build
 ```
+
 빌드 타임에 상수로 주입되어 Tree Shaking 최적화에 활용됩니다.
 
 2. 런타임 환경 변수 (fallback)
+
 ```bash
 WEB_LOGGER_LOG_LEVEL=debug npm run dev
 ```
+
 빌드 타임 상수가 없는 경우 사용됩니다.
 
 3. 전역 변수 (런타임, 즉시 반영)
+
 ```javascript
 window.__WEB_LOGGER_LOG_LEVEL__ = 'debug';
 ```
+
 모든 WebLogger 인스턴스에 즉시 반영됩니다.
 
 4. 기본값
+
 - 개발 환경: `debug` (모든 로그 출력)
 - 프로덕션 환경: `warn` (warn, error만 출력)
 
@@ -455,30 +478,31 @@ window.__WEB_LOGGER_LOG_LEVEL__ = 'debug';
 
 ### 로그 레벨 설명
 
-| 레벨 | 설명 | 프로덕션 기본값 |
-|------|------|----------------|
-| `debug` | 모든 로그 출력 | ❌ |
-| `info` | 정보, 경고, 에러 출력 | ❌ |
-| `warn` | 경고, 에러만 출력 | ✅ |
-| `error` | 에러만 출력 | ✅ |
-| `none` | 모든 로그 비활성화 | ❌ |
+| 레벨    | 설명                  | 프로덕션 기본값 |
+| ------- | --------------------- | --------------- |
+| `debug` | 모든 로그 출력        | ❌              |
+| `info`  | 정보, 경고, 에러 출력 | ❌              |
+| `warn`  | 경고, 에러만 출력     | ✅              |
+| `error` | 에러만 출력           | ✅              |
+| `none`  | 모든 로그 비활성화    | ❌              |
 
 ## 🛡️ 보안 기능
 
 ### 자동 필터링되는 정보
 
-| 데이터 유형 | 마스킹 결과 | 예시 |
-|------------|------------|------|
-| 이메일 | `[EMAIL]` | user@example.com → [EMAIL] |
-| 카드번호 | `[CARD]` | 1234-5678-9012-3456 → [CARD] |
-| 전화번호 | `[PHONE]` | 010-1234-5678 → [PHONE] |
-| JWT 토큰 | `[JWT]` | Bearer eyJ... → Bearer [JWT] |
-| 패스워드 | `[PASSWORD]` | password: "secret" → password: [PASSWORD] |
-| API 키 | `[APIKEY]` | 32자 이상 문자열 → [APIKEY] |
+| 데이터 유형 | 마스킹 결과  | 예시                                      |
+| ----------- | ------------ | ----------------------------------------- |
+| 이메일      | `[EMAIL]`    | user@example.com → [EMAIL]                |
+| 카드번호    | `[CARD]`     | 1234-5678-9012-3456 → [CARD]              |
+| 전화번호    | `[PHONE]`    | 010-1234-5678 → [PHONE]                   |
+| JWT 토큰    | `[JWT]`      | Bearer eyJ... → Bearer [JWT]              |
+| 패스워드    | `[PASSWORD]` | password: "secret" → password: [PASSWORD] |
+| API 키      | `[APIKEY]`   | 32자 이상 문자열 → [APIKEY]               |
 
 ### 민감한 객체 속성
 
 다음 키를 가진 객체 속성은 자동으로 `[REDACTED]`로 대체됩니다:
+
 - password, pwd, passwd
 - token, apiKey, api_key
 - accessToken, refreshToken, authToken
@@ -495,7 +519,12 @@ window.__WEB_LOGGER_LOG_LEVEL__ = 'debug';
 민감한 키 목록을 동적으로 추가하거나 제거할 수 있습니다:
 
 ```typescript
-import { addSensitiveKey, removeSensitiveKey, getSensitiveKeys, resetSensitiveKeys } from '@cp949/web-logger';
+import {
+  addSensitiveKey,
+  removeSensitiveKey,
+  getSensitiveKeys,
+  resetSensitiveKeys,
+} from '@cp949/web-logger';
 
 // 키 추가
 addSensitiveKey('customSecret');
@@ -518,13 +547,14 @@ resetSensitiveKeys();
 
 ### 벤치마크 결과
 
-| 작업 | 개선 전 | 개선 후 | 향상률 |
-|-----|--------|--------|--------|
-| 정규식 매칭 | 230ms | 23ms | 90% ⬆️ |
-| 대량 로그 (10,000개) | 1,200ms | 450ms | 62% ⬆️ |
-| 메모리 사용량 | 15MB | 10MB | 33% ⬇️ |
+| 작업                 | 개선 전 | 개선 후 | 향상률 |
+| -------------------- | ------- | ------- | ------ |
+| 정규식 매칭          | 230ms   | 23ms    | 90% ⬆️ |
+| 대량 로그 (10,000개) | 1,200ms | 450ms   | 62% ⬆️ |
+| 메모리 사용량        | 15MB    | 10MB    | 33% ⬇️ |
 
 ### 최적화 기법
+
 - 정규식 패턴 캐싱: 컴파일된 정규식 재사용
 - 문자열 길이 제한: 5,000자로 제한하여 ReDoS 공격 방지
 - 정규식 실행 시간 제한: 100ms 타임아웃으로 성능 보장
@@ -532,6 +562,7 @@ resetSensitiveKeys();
 - 빌드 타임 최적화: 환경 변수를 빌드 타임 상수로 주입하여 Tree Shaking 최적화
 
 ### 번들 크기
+
 - ESM: ~12.8 KB (unminified, sourcemap 포함)
 - CJS: ~13.1 KB (unminified, sourcemap 포함)
 - 타입 정의: ~3.5 KB
@@ -541,11 +572,12 @@ resetSensitiveKeys();
 이 라이브러리는 Tree Shaking을 지원합니다. 빌드 타임에 환경 변수를 상수로 주입하여 데드 코드 제거를 최적화합니다.
 
 빌드 타임 상수 주입:
+
 ```typescript
 // tsup.config.ts에서 자동으로 주입됨
-__DEV__: boolean        // 개발 모드 여부
-__NODE_ENV__: string   // NODE_ENV 값
-__INITIAL_LOG_LEVEL__: string  // 초기 로그 레벨
+__DEV__: boolean; // 개발 모드 여부
+__NODE_ENV__: string; // NODE_ENV 값
+__INITIAL_LOG_LEVEL__: string; // 초기 로그 레벨
 ```
 
 > 참고: Tree Shaking은 번들러(Webpack, Vite, Rollup 등)가 빌드 타임 상수를 기반으로 데드 코드를 제거합니다. 런타임에서 로그 레벨을 동적으로 변경하는 방법은 "설정" 섹션을 참조하세요.
@@ -562,10 +594,10 @@ Map의 키와 값이 모두 sanitize됩니다. 키가 민감한 키워드와 일
 import { logInfo } from '@cp949/web-logger';
 
 const userMap = new Map([
-  ['email', 'user@example.com'],      // 키 'email' → '[REDACTED]'
-  ['password', 'secret123'],          // 키 'password' → '[REDACTED]'
-  ['username', 'john'],               // 일반 키는 보존
-  ['contact', 'user@example.com']     // 값 마스킹: '[EMAIL]'
+  ['email', 'user@example.com'], // 키 'email' → '[REDACTED]'
+  ['password', 'secret123'], // 키 'password' → '[REDACTED]'
+  ['username', 'john'], // 일반 키는 보존
+  ['contact', 'user@example.com'], // 값 마스킹: '[EMAIL]'
 ]);
 
 logInfo('사용자 데이터:', userMap);
@@ -573,6 +605,7 @@ logInfo('사용자 데이터:', userMap);
 ```
 
 **중요 사항:**
+
 - Map 키는 민감한 키워드와 비교됩니다 (대소문자 구분 없음)
 - 민감한 키는 키 충돌을 방지하기 위해 `[REDACTED]`로 대체됩니다
 - Map 값은 일반 객체 속성과 동일한 규칙으로 sanitize됩니다
@@ -584,17 +617,14 @@ Set 요소는 개별적으로 sanitize됩니다. **참고**: 여러 다른 값�
 ```typescript
 import { logInfo } from '@cp949/web-logger';
 
-const emailSet = new Set([
-  'user1@example.com',
-  'user2@example.com',
-  'admin@example.com'
-]);
+const emailSet = new Set(['user1@example.com', 'user2@example.com', 'admin@example.com']);
 
 logInfo('이메일 목록:', emailSet);
 // 출력: Set(['[EMAIL]']) - 모든 이메일이 [EMAIL]로 마스킹되어 하나의 요소로 중복 제거됨
 ```
 
 **중요 사항:**
+
 - Set 요소는 패턴 기반 마스킹을 사용하여 sanitize됩니다
 - 마스킹 후 여러 요소가 동일해지면 (예: 모두 `[EMAIL]`), Set의 고유성으로 인해 크기가 줄어듭니다
 - 이는 Set의 특성상 예상되는 동작입니다 - 원래 개수를 유지해야 한다면 Array 사용을 고려하세요
@@ -608,7 +638,7 @@ import { logInfo } from '@cp949/web-logger';
 
 const eventDate = new Date('2024-12-01');
 const customDate = {
-  toISOString: () => 'meeting-with-user@example.com-2024'
+  toISOString: () => 'meeting-with-user@example.com-2024',
 };
 
 logInfo('이벤트 날짜:', eventDate);
@@ -639,6 +669,7 @@ if (typeof Buffer !== 'undefined') {
 ```
 
 **중요 사항:**
+
 - TypedArray (Uint8Array, Int32Array, Float64Array 등) → `[BINARY_DATA]`
 - Node.js Buffer → `[BUFFER]` (올바른 감지를 위해 TypedArray보다 먼저 체크)
 - DataView 객체는 그대로 보존됩니다 (마스킹하지 않음)
@@ -653,13 +684,13 @@ import { logInfo } from '@cp949/web-logger';
 const complexData = {
   users: new Map([
     ['admin', { email: 'admin@example.com', role: 'admin' }],
-    ['user1', { email: 'user1@example.com', role: 'user' }]
+    ['user1', { email: 'user1@example.com', role: 'user' }],
   ]),
   emails: new Set(['user@example.com', 'admin@example.com']),
   lastUpdated: new Date(),
   metadata: {
-    binaryData: new Uint8Array([1, 2, 3])
-  }
+    binaryData: new Uint8Array([1, 2, 3]),
+  },
 };
 
 logInfo('복잡한 데이터:', complexData);
@@ -677,6 +708,7 @@ npm test -- --coverage
 ```
 
 ### 테스트 커버리지
+
 - Statements: 85.26%
 - Branches: 82.3%
 - Functions: 90.36%
@@ -760,11 +792,11 @@ export type LogValue =
 ## 🌐 브라우저 지원
 
 | 브라우저 | 버전 | 지원 |
-|---------|------|------|
-| Chrome | 90+ | ✅ |
-| Firefox | 88+ | ✅ |
-| Safari | 14+ | ✅ |
-| Edge | 90+ | ✅ |
+| -------- | ---- | ---- |
+| Chrome   | 90+  | ✅   |
+| Firefox  | 88+  | ✅   |
+| Safari   | 14+  | ✅   |
+| Edge     | 90+  | ✅   |
 
 ## 📄 라이선스
 
@@ -783,6 +815,7 @@ MIT License - 자유롭게 사용하고 수정할 수 있습니다.
 ## 🏷️ 버전 히스토리
 
 ### v1.0.1 (2024-12-01)
+
 - Next.js 및 기타 프레임워크를 위한 완전한 SSR/CSR 호환성 추가
 - 서버 환경에서는 globalThis, 브라우저에서는 window 사용
 - Node.js 환경에서 런타임 에러 없음
@@ -791,6 +824,7 @@ MIT License - 자유롭게 사용하고 수정할 수 있습니다.
 - SSR 전용 테스트 케이스 추가
 
 ### v1.0.0 (2024-12-01)
+
 - 초기 릴리즈
 - 완전한 TypeScript 지원 (any 타입 0개)
 - 민감한 정보 자동 필터링

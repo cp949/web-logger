@@ -38,8 +38,8 @@
     "eslint-plugin-react-hooks": "^7.0.1",
     "jsdom": "^27.2.0",
     "prettier": "^3.7.3",
-    "react": "^18.0.0",
-    "react-dom": "^18.0.0",
+    "react": "^19.2.1",
+    "react-dom": "^19.2.1",
     "tsup": "^8.5.1",
     "typescript": "^5.9.3",
     "vitest": "^4.0.14"

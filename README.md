@@ -1,7 +1,7 @@
 # @cp949/web-logger
 
 [![npm version](https://img.shields.io/npm/v/@cp949/web-logger.svg)](https://www.npmjs.com/package/@cp949/web-logger)
-[![Bundle Size](https://img.shields.io/badge/Bundle%20Size-3.16KB%20(brotli)-green)](BUNDLE_SIZE.md)
+[![Bundle Size](<https://img.shields.io/badge/Bundle%20Size-3.16KB%20(brotli)-green>)](BUNDLE_SIZE.md)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.0%2B-blue)](https://www.typescriptlang.org/)
 
@@ -14,12 +14,14 @@ A production-optimized web logging library. Provides rich debugging information 
 ## ✨ Key Features
 
 ### 🔐 Security First
+
 - Automatic sensitive data filtering: Email, phone numbers, card numbers, JWT tokens, passwords, etc. are automatically masked
 - Prototype pollution prevention: Filters dangerous keys like `__proto__`, `constructor`
 - ReDoS attack prevention: String length limit (5,000 characters) and regex execution time limit (100ms)
 - Safe circular reference handling: Maximum depth limit of 10 levels
 
 ### ⚡ Performance Optimized
+
 - **Ultra-lightweight**: Only 3.16KB (Brotli), 7KB (Gzip)
 - Tree Shaking support: Dead code elimination possible through build-time constant injection
 - Regex caching: Performance improvement through reuse of compiled regex patterns
@@ -29,12 +31,14 @@ A production-optimized web logging library. Provides rich debugging information 
 - SSR/CSR compatibility: Works seamlessly in both server-side rendering and client-side environments
 
 ### 🎨 Developer Experience
+
 - Colorful console output: Color-coded by log level
 - Automatic timestamp addition: HH:MM:SS format
 - Structured data display: Metadata display using `console.table`
 - 100% type safe: Full TypeScript support, no any types
 
 ### 🛠️ Flexible Configuration
+
 - Various log levels: debug, info, warn, error, none
 - Runtime level control: Dynamic changes possible even in production
 - Multiple configuration sources: Environment variables, global variables
@@ -102,39 +106,42 @@ console.log(getLogLevel()); // 'debug'
 Web Logger provides two types of data masking with clear priority:
 
 #### Key-based Masking (Higher Priority)
+
 When object property keys match sensitive keywords, the value is partially masked showing only a few characters:
 
 ```typescript
 // Sensitive keys are partially masked showing first few characters
 logDebug('User data:', {
-  password: 'mypassword123',  // → password: 'my***'
+  password: 'mypassword123', // → password: 'my***'
   email: 'user@example.com', // → email: 'use***@example.com'
-  apiKey: 'key123456789'     // → apiKey: 'ke***'
+  apiKey: 'key123456789', // → apiKey: 'ke***'
 });
 ```
 
 **Sensitive keys include:** `password`, `pwd`, `passwd`, `token`, `apiKey`, `api_key`, `accessToken`, `refreshToken`, `authToken`, `authorization`, `email`, `phone`, `phoneNumber`, `mobile`, `creditCard`, `cardNumber`, `card_number`, `ssn`, `socialSecurityNumber`, `residentNumber`, `resident_number`, `secret`, `secretKey`, `privateKey`, `private_key`, `sessionId`, `session_id`, `cookie`, `cookies`
 
 #### Pattern-based Masking (Lower Priority)
+
 For non-sensitive keys, values are scanned for patterns and masked accordingly:
 
 ```typescript
 // Pattern detection in regular property values
 logDebug('Contact info:', {
-  userEmail: 'user@example.com',        // → userEmail: '[EMAIL]'
-  description: 'Call 010-1234-5678',    // → description: 'Call [PHONE]'
-  payment: '1234-5678-9012-3456'        // → payment: '[CARD]'
+  userEmail: 'user@example.com', // → userEmail: '[EMAIL]'
+  description: 'Call 010-1234-5678', // → description: 'Call [PHONE]'
+  payment: '1234-5678-9012-3456', // → payment: '[CARD]'
 });
 ```
 
 **Detected patterns:** Email addresses → `[EMAIL]`, Credit cards → `[CARD]`, Phone numbers → `[PHONE]`, JWT tokens → `[JWT]`, API keys → `[APIKEY]`, Passwords → `[PASSWORD]`
 
 #### Priority Example
+
 ```typescript
 // Key-based masking takes precedence
 const data = {
-  email: 'user@example.com',     // Key matches → 'use***@example.com' (not '[EMAIL]')
-  userInfo: 'user@example.com'   // Key doesn't match → '[EMAIL]'
+  email: 'user@example.com', // Key matches → 'use***@example.com' (not '[EMAIL]')
+  userInfo: 'user@example.com', // Key doesn't match → '[EMAIL]'
 };
 ```
 
@@ -230,6 +237,7 @@ This library fully supports Server-Side Rendering (SSR) environments like Next.j
 ### How It Works
 
 The library automatically detects the environment and uses the appropriate global object:
+
 - **Browser (CSR)**: Uses `window.__WEB_LOGGER_LOG_LEVEL__`
 - **Server (SSR)**: Uses `globalThis.__WEB_LOGGER_LOG_LEVEL__`
 
@@ -251,7 +259,7 @@ import { logDebug, logInfo } from '@cp949/web-logger';
 
 export default function Page() {
   logInfo('Page component rendered'); // Works on both server and client
-  
+
   return <div>Hello World</div>;
 }
 
@@ -309,6 +317,7 @@ if (typeof window !== 'undefined') {
 Log levels are determined in the following priority order:
 
 1. Runtime global variables (highest priority, immediately applied)
+
 ```javascript
 // Browser environment
 window.__WEB_LOGGER_LOG_LEVEL__ = 'debug';
@@ -316,27 +325,34 @@ window.__WEB_LOGGER_LOG_LEVEL__ = 'debug';
 // Node.js/SSR environment
 globalThis.__WEB_LOGGER_LOG_LEVEL__ = 'debug';
 ```
+
 Changes are immediately applied to all WebLogger instances.
 
 2. Build-time constant (optional, injected at build time)
+
 ```typescript
 // In your bundler config (tsup, webpack, vite, etc.)
 define: {
-  __INITIAL_LOG_LEVEL__: JSON.stringify('warn')
+  __INITIAL_LOG_LEVEL__: JSON.stringify('warn');
 }
 ```
+
 Used for setting initial log level at build time.
 
 3. Runtime environment variable
+
 ```bash
 WEB_LOGGER_LOG_LEVEL=debug npm run dev
 ```
+
 Used when global variables and build-time constants are not set.
 
 4. Development mode detection
+
 - Automatically detects development environment using NODE_ENV
 
 5. Default value
+
 - Development environment: `debug` (all logs output)
 - Production environment: `warn` (only warn and error output)
 
@@ -344,30 +360,31 @@ Used when global variables and build-time constants are not set.
 
 ### Log Level Description
 
-| Level | Description | Production Default |
-|-------|-------------|-------------------|
-| `debug` | All logs output | ❌ |
-| `info` | Info, warning, error output | ❌ |
-| `warn` | Only warning and error output | ✅ |
-| `error` | Only error output | ✅ |
-| `none` | All logs disabled | ❌ |
+| Level   | Description                   | Production Default |
+| ------- | ----------------------------- | ------------------ |
+| `debug` | All logs output               | ❌                 |
+| `info`  | Info, warning, error output   | ❌                 |
+| `warn`  | Only warning and error output | ✅                 |
+| `error` | Only error output             | ✅                 |
+| `none`  | All logs disabled             | ❌                 |
 
 ## 🛡️ Security Features
 
 ### Automatically Filtered Information
 
-| Data Type | Masking Result | Example |
-|-----------|---------------|---------|
-| Email | `[EMAIL]` | user@example.com → [EMAIL] |
-| Card Number | `[CARD]` | 1234-5678-9012-3456 → [CARD] |
-| Phone Number | `[PHONE]` | 010-1234-5678 → [PHONE] |
-| JWT Token | `[JWT]` | Bearer eyJ... → Bearer [JWT] |
-| Password | `[PASSWORD]` | password: "secret" → password: [PASSWORD] |
-| API Key | `[APIKEY]` | 32+ character string → [APIKEY] |
+| Data Type    | Masking Result | Example                                   |
+| ------------ | -------------- | ----------------------------------------- |
+| Email        | `[EMAIL]`      | user@example.com → [EMAIL]                |
+| Card Number  | `[CARD]`       | 1234-5678-9012-3456 → [CARD]              |
+| Phone Number | `[PHONE]`      | 010-1234-5678 → [PHONE]                   |
+| JWT Token    | `[JWT]`        | Bearer eyJ... → Bearer [JWT]              |
+| Password     | `[PASSWORD]`   | password: "secret" → password: [PASSWORD] |
+| API Key      | `[APIKEY]`     | 32+ character string → [APIKEY]           |
 
 ### Sensitive Object Properties
 
 Object properties with the following keys are automatically replaced with `[REDACTED]`:
+
 - password, pwd, passwd
 - token, apiKey, api_key
 - accessToken, refreshToken, authToken
@@ -384,7 +401,12 @@ Object properties with the following keys are automatically replaced with `[REDA
 You can dynamically add or remove sensitive keys:
 
 ```typescript
-import { addSensitiveKey, removeSensitiveKey, getSensitiveKeys, resetSensitiveKeys } from '@cp949/web-logger';
+import {
+  addSensitiveKey,
+  removeSensitiveKey,
+  getSensitiveKeys,
+  resetSensitiveKeys,
+} from '@cp949/web-logger';
 
 // Add key
 addSensitiveKey('customSecret');
@@ -415,10 +437,10 @@ Map keys and values are both sanitized. If a key matches a sensitive keyword, th
 import { logInfo } from '@cp949/web-logger';
 
 const userMap = new Map([
-  ['email', 'user@example.com'],      // Key 'email' → '[REDACTED]'
-  ['password', 'secret123'],          // Key 'password' → '[REDACTED]'
-  ['username', 'john'],               // Normal key preserved
-  ['contact', 'user@example.com']     // Value masked: '[EMAIL]'
+  ['email', 'user@example.com'], // Key 'email' → '[REDACTED]'
+  ['password', 'secret123'], // Key 'password' → '[REDACTED]'
+  ['username', 'john'], // Normal key preserved
+  ['contact', 'user@example.com'], // Value masked: '[EMAIL]'
 ]);
 
 logInfo('User data:', userMap);
@@ -426,6 +448,7 @@ logInfo('User data:', userMap);
 ```
 
 **Important Notes:**
+
 - Map keys are checked against sensitive keywords (case-insensitive)
 - If a key is sensitive, it's replaced with `[REDACTED]` to prevent key collision
 - Map values are sanitized using the same rules as regular object properties
@@ -437,17 +460,14 @@ Set elements are sanitized individually. **Note**: If multiple different values 
 ```typescript
 import { logInfo } from '@cp949/web-logger';
 
-const emailSet = new Set([
-  'user1@example.com',
-  'user2@example.com',
-  'admin@example.com'
-]);
+const emailSet = new Set(['user1@example.com', 'user2@example.com', 'admin@example.com']);
 
 logInfo('Email list:', emailSet);
 // Output: Set(['[EMAIL]']) - All emails masked to [EMAIL], Set deduplicates to single element
 ```
 
 **Important Notes:**
+
 - Set elements are sanitized using pattern-based masking
 - After masking, if multiple elements become identical (e.g., all `[EMAIL]`), Set's uniqueness will reduce the size
 - This is expected behavior due to Set's nature - consider using an Array if you need to preserve the original count
@@ -461,7 +481,7 @@ import { logInfo } from '@cp949/web-logger';
 
 const eventDate = new Date('2024-12-01');
 const customDate = {
-  toISOString: () => 'meeting-with-user@example.com-2024'
+  toISOString: () => 'meeting-with-user@example.com-2024',
 };
 
 logInfo('Event date:', eventDate);
@@ -492,6 +512,7 @@ if (typeof Buffer !== 'undefined') {
 ```
 
 **Important Notes:**
+
 - TypedArray (Uint8Array, Int32Array, Float64Array, etc.) → `[BINARY_DATA]`
 - Node.js Buffer → `[BUFFER]` (checked before TypedArray to ensure correct detection)
 - DataView objects are preserved as-is (not masked)
@@ -507,10 +528,10 @@ const complexData = {
   date: new Date('2024-12-01'),
   userMap: new Map([
     ['email', 'user@example.com'],
-    ['password', 'secret']
+    ['password', 'secret'],
   ]),
   emailSet: new Set(['user1@example.com', 'user2@example.com']),
-  binaryData: new Uint8Array([1, 2, 3])
+  binaryData: new Uint8Array([1, 2, 3]),
 };
 
 logInfo('Complex data:', complexData);
@@ -521,13 +542,14 @@ logInfo('Complex data:', complexData);
 
 ### Benchmark Results
 
-| Task | Before | After | Improvement |
-|------|--------|-------|-------------|
-| Regex matching | 230ms | 23ms | 90% ⬆️ |
-| Bulk logs (10,000) | 1,200ms | 450ms | 62% ⬆️ |
-| Memory usage | 15MB | 10MB | 33% ⬇️ |
+| Task               | Before  | After | Improvement |
+| ------------------ | ------- | ----- | ----------- |
+| Regex matching     | 230ms   | 23ms  | 90% ⬆️      |
+| Bulk logs (10,000) | 1,200ms | 450ms | 62% ⬆️      |
+| Memory usage       | 15MB    | 10MB  | 33% ⬇️      |
 
 ### Optimization Techniques
+
 - Regex pattern caching: Reuse of compiled regex patterns
 - String length limit: Limited to 5,000 characters to prevent ReDoS attacks
 - Regex execution time limit: 100ms timeout to ensure performance
@@ -535,6 +557,7 @@ logInfo('Complex data:', complexData);
 - Build-time optimization: Environment variables injected as build-time constants for Tree Shaking optimization
 
 ### Bundle Size
+
 - ESM: ~12.8 KB (unminified, includes sourcemap)
 - CJS: ~13.1 KB (unminified, includes sourcemap)
 - Type definitions: ~3.5 KB
@@ -544,11 +567,12 @@ logInfo('Complex data:', complexData);
 This library supports Tree Shaking. Optimizes dead code elimination by injecting environment variables as constants at build time.
 
 Build-time constant injection:
+
 ```typescript
 // Automatically injected in tsup.config.ts
-__DEV__: boolean        // Development mode flag
-__NODE_ENV__: string   // NODE_ENV value
-__INITIAL_LOG_LEVEL__: string  // Initial log level
+__DEV__: boolean; // Development mode flag
+__NODE_ENV__: string; // NODE_ENV value
+__INITIAL_LOG_LEVEL__: string; // Initial log level
 ```
 
 > Note: Tree Shaking is performed by bundlers (Webpack, Vite, Rollup, etc.) based on build-time constants. For how to dynamically change log levels at runtime, refer to the "Configuration" section.
@@ -564,6 +588,7 @@ npm test -- --coverage
 ```
 
 ### Test Coverage
+
 - Statements: 85.26%
 - Branches: 82.3%
 - Functions: 90.36%
@@ -657,11 +682,11 @@ export type LogValue =
 ## 🌐 Browser Support
 
 | Browser | Version | Support |
-|---------|---------|---------|
-| Chrome | 90+ | ✅ |
-| Firefox | 88+ | ✅ |
-| Safari | 14+ | ✅ |
-| Edge | 90+ | ✅ |
+| ------- | ------- | ------- |
+| Chrome  | 90+     | ✅      |
+| Firefox | 88+     | ✅      |
+| Safari  | 14+     | ✅      |
+| Edge    | 90+     | ✅      |
 
 ## 📄 License
 
@@ -676,25 +701,3 @@ Bug reports and feature suggestions are welcome!
 3. Commit your changes (`git commit -m 'Add amazing feature'`)
 4. Push to the branch (`git push origin feature/amazing-feature`)
 5. Open a Pull Request
-
-## 🏷️ Version History
-
-### v1.0.1 (2024-12-01)
-- Added full SSR/CSR compatibility for Next.js and other frameworks
-- Uses globalThis for server environments, window for browser
-- No runtime errors in Node.js environments
-- Shared log level across all instances via globalThis
-- Enhanced type declarations for global variables
-- Added SSR-specific test cases
-
-### v1.0.0 (2024-12-01)
-- Initial release
-- Full TypeScript support (0 any types)
-- Automatic sensitive data filtering
-- Performance optimization with regex caching and timeout
-- Prototype pollution prevention
-- ReDoS attack prevention (string length limit 5,000 characters, regex timeout 100ms)
-- ESM/CJS dual package support
-- Tree Shaking optimization with build-time constant injection
-- Immediate log level reflection (no refresh needed)
-- 34 test cases passed

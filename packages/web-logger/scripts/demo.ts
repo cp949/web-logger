@@ -5,7 +5,12 @@
  * (ts-node 또는 tsx 등 TS 런타임이 설치되어 있어야 합니다)
  */
 
-import { WebLogger, addSensitivePatterns, setSensitivePatternWarnings, setSensitivePatterns } from '../src/WebLogger';
+import {
+  WebLogger,
+  addSensitivePatterns,
+  setSensitivePatternWarnings,
+  setSensitivePatterns,
+} from '../src/WebLogger';
 
 type UserMeta = { userId: string; email?: string };
 

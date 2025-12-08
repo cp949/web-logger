@@ -115,6 +115,7 @@ export default function Page() {
 > Use `useWebLogger` only in client components / browser contexts. For server-side logging, use your server logger or guard with `if (typeof window !== 'undefined')`.
 
 #### Server-side note
+
 - Prefer your platform logger (e.g., `console`, pino, winston) on the server.
 - Keep `@cp949/web-logger` client-side to avoid bundling browser-only code into SSR lambdas.
 

@@ -18,4 +18,3 @@ export default defineConfig({
   bundle: true,
   tsconfig: './tsconfig.json',
 });
-

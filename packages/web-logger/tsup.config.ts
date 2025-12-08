@@ -28,9 +28,9 @@ export default defineConfig({
   tsconfig: './tsconfig.json',
   // 빌드 타임 상수 주입 (Tree Shaking을 위한 데드 코드 제거)
   define: {
-    '__DEV__': JSON.stringify(isDev),
-    '__NODE_ENV__': JSON.stringify(NODE_ENV),
-    '__INITIAL_LOG_LEVEL__': JSON.stringify(INITIAL_LOG_LEVEL),
+    __DEV__: JSON.stringify(isDev),
+    __NODE_ENV__: JSON.stringify(NODE_ENV),
+    __INITIAL_LOG_LEVEL__: JSON.stringify(INITIAL_LOG_LEVEL),
     // process.env 접근을 빌드 타임 상수로 대체
     'process.env.NODE_ENV': JSON.stringify(NODE_ENV),
     'process.env.WEB_LOGGER_LOG_LEVEL': JSON.stringify(INITIAL_LOG_LEVEL),

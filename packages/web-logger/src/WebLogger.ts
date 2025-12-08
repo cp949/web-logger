@@ -19,7 +19,7 @@ const DEFAULT_SENSITIVE_PATTERNS: SensitivePatternMap = {
   ssn: /\b\d{6}[\s\-]?\d{7}\b/g,
   jwt: /Bearer\s+[A-Za-z0-9\-_]+\.[A-Za-z0-9\-_]+\.[A-Za-z0-9\-_]+/g,
   apiKey: /[a-zA-Z0-9]{32,}/g,
-  password: /password['":\s]*['"'][^'"]*['"']/gi
+  password: /password['":\s]*['"'][^'"]*['"']/gi,
 };
 
 // 프로토타입 오염 방지를 위한 안전하지 않은 키
@@ -129,7 +129,7 @@ const handleError = (error: unknown, context: string): void => {
 
 /**
  * 로그 레벨 타입
- * 
+ *
  * - `debug`: 모든 로그 출력 (개발 환경 기본값)
  * - `info`: info, warn, error 출력
  * - `warn`: warn, error만 출력 (프로덕션 기본값)
@@ -147,32 +147,32 @@ interface LogLevelConfig {
 const LOG_LEVEL_CONFIGS: Record<LogLevel, LogLevelConfig> = {
   debug: {
     style: 'color: #6B7280; font-weight: normal;',
-    label: 'DEBUG'
+    label: 'DEBUG',
   },
   info: {
     style: 'color: #3B82F6; font-weight: normal;',
-    label: 'INFO'
+    label: 'INFO',
   },
   warn: {
     style: 'color: #F59E0B; font-weight: bold;',
-    label: 'WARN'
+    label: 'WARN',
   },
   error: {
     style: 'color: #EF4444; font-weight: bold;',
-    label: 'ERROR'
+    label: 'ERROR',
   },
   none: {
     style: '',
-    label: ''
-  }
+    label: '',
+  },
 };
 
 /**
  * 로그 메타데이터 타입
- * 
+ *
  * 객체 형태의 추가 정보를 로그와 함께 전달할 때 사용합니다.
  * `console.table`을 사용하여 구조화된 형태로 표시됩니다.
- * 
+ *
  * @example
  * ```typescript
  * logger.info('User login', { userId: 123, email: 'user@example.com' });
@@ -186,10 +186,18 @@ export type LogMetadata =
 
 /**
  * 로그 가능한 값 타입
- * 
+ *
  * WebLogger가 처리할 수 있는 모든 데이터 타입을 포함합니다.
  */
-export type LogValue = string | number | boolean | null | undefined | Error | LogMetadata | LogValue[];
+export type LogValue =
+  | string
+  | number
+  | boolean
+  | null
+  | undefined
+  | Error
+  | LogMetadata
+  | LogValue[];
 
 /**
  * WebLogger 구성 옵션
@@ -217,10 +225,7 @@ declare global {
  * 로그 레벨 유효성 검증
  */
 const isValidLogLevel = (level: unknown): level is LogLevel => {
-  return (
-    typeof level === 'string' &&
-    ['debug', 'info', 'warn', 'error', 'none'].includes(level)
-  );
+  return typeof level === 'string' && ['debug', 'info', 'warn', 'error', 'none'].includes(level);
 };
 
 /**
@@ -468,7 +473,12 @@ class SensitivePatternsManager {
       (key) => !Object.prototype.hasOwnProperty.call(nextPatterns, key),
     );
 
-    if (!this.suppressWarnings && missing.length > 0 && typeof console !== 'undefined' && console.warn) {
+    if (
+      !this.suppressWarnings &&
+      missing.length > 0 &&
+      typeof console !== 'undefined' &&
+      console.warn
+    ) {
       console.warn(
         `[WebLogger] Default sensitive patterns removed: ${missing.join(
           ', ',
@@ -562,7 +572,7 @@ class LogLevelManager {
    * 로그 레벨 설정 (런타임 제어)
    * 프로덕션에서 디버깅 시 사용
    * 모든 WebLogger 인스턴스에 즉시 반영됨
-   * 
+   *
    * @param level 설정할 로그 레벨 ('debug' | 'info' | 'warn' | 'error' | 'none')
    * @throws {LoggerError} 개발 모드에서 잘못된 로그 레벨이 전달된 경우
    */
@@ -688,13 +698,13 @@ function applyRegexWithTimeout(text: string, timeoutMs: number = REGEX_TIMEOUT_M
 function maskSensitiveValue(value: unknown, key?: string): string {
   // null이나 undefined는 특별 처리 (캐싱 불필요)
   if (value === null || value === undefined) return '***';
-  
+
   const str = String(value);
   if (str.length === 0) return '***';
 
   // 캐시 키 생성: value와 key를 조합
   const cacheKey = `${str}|${key || ''}`;
-  
+
   // 캐시에서 확인
   const cached = maskValueCache.get(cacheKey);
   if (cached !== undefined) {
@@ -874,13 +884,15 @@ function sanitizeLogData(
   if (data instanceof Map) {
     const sanitized = new Map();
     for (const [key, value] of data.entries()) {
-      const sanitizedKey = typeof key === 'string' && sensitiveKeysManager.isSensitive(key)
-        ? maskSensitiveValue(key, key)
-        : sanitizeLogData(key, depth + 1, visited);
+      const sanitizedKey =
+        typeof key === 'string' && sensitiveKeysManager.isSensitive(key)
+          ? maskSensitiveValue(key, key)
+          : sanitizeLogData(key, depth + 1, visited);
       // Map의 값도 민감한 키인 경우 마스킹
-      const sanitizedValue = typeof key === 'string' && sensitiveKeysManager.isSensitive(key)
-        ? maskSensitiveValue(value, key)
-        : sanitizeLogData(value, depth + 1, visited);
+      const sanitizedValue =
+        typeof key === 'string' && sensitiveKeysManager.isSensitive(key)
+          ? maskSensitiveValue(value, key)
+          : sanitizeLogData(value, depth + 1, visited);
       sanitized.set(sanitizedKey, sanitizedValue);
     }
     return sanitized;
@@ -932,7 +944,7 @@ function sanitizeLogData(
         sanitized[key] = sanitizeLogData(value, depth + 1, visited);
       }
     }
-    
+
     // 캐시에 저장 (성능 최적화)
     sanitizeCache.set(data as object, sanitized);
     return sanitized;
@@ -948,10 +960,10 @@ function sanitizeLogData(
 
 /**
  * WebLogger 클래스
- * 
+ *
  * 프로덕션 환경에 최적화된 웹 로깅 라이브러리의 메인 클래스입니다.
  * 자동 민감 정보 필터링, 로그 레벨 제어, SSR/CSR 호환 등의 기능을 제공합니다.
- * 
+ *
  * @example
  * ```typescript
  * const logger = new WebLogger('[MyApp]');
@@ -967,10 +979,10 @@ export class WebLogger<TMetadata extends LogMetadata = LogMetadata> {
 
   /**
    * WebLogger 인스턴스 생성
-   * 
+   *
    * @param prefixOrOptions 로그 prefix 또는 구성 옵션 (기본값: '[APP]')
    * @param options 추가 구성 옵션 (prefix를 문자열로 전달할 때 사용)
-   * 
+   *
    * @example
    * ```typescript
    * const logger = new WebLogger('[MyApp]');
@@ -983,7 +995,8 @@ export class WebLogger<TMetadata extends LogMetadata = LogMetadata> {
     options?: WebLoggerOptions<TMetadata>,
   ) {
     const resolvedOptions = typeof prefixOrOptions === 'string' ? options : prefixOrOptions;
-    const resolvedPrefix = typeof prefixOrOptions === 'string' ? prefixOrOptions : prefixOrOptions.prefix;
+    const resolvedPrefix =
+      typeof prefixOrOptions === 'string' ? prefixOrOptions : prefixOrOptions.prefix;
 
     this.prefix = resolvedPrefix ?? '[APP]';
     this.logLevelManager = logLevelManager;
@@ -1023,12 +1036,12 @@ export class WebLogger<TMetadata extends LogMetadata = LogMetadata> {
 
   /**
    * 현재 로그 레벨 가져오기 (동적 조회)
-   * 
+   *
    * `setLogLevel()` 호출 시 즉시 반영됩니다.
    * 모든 WebLogger 인스턴스가 동일한 전역 로그 레벨을 공유합니다.
-   * 
+   *
    * @returns 현재 로그 레벨
-   * 
+   *
    * @example
    * ```typescript
    * logger.setLogLevel('debug');
@@ -1041,12 +1054,12 @@ export class WebLogger<TMetadata extends LogMetadata = LogMetadata> {
 
   /**
    * 로그 레벨 설정 (런타임 제어)
-   * 
+   *
    * 프로덕션에서 디버깅 시 사용할 수 있습니다.
    * 모든 WebLogger 인스턴스에 즉시 반영되며, `globalThis`를 통해 SSR/CSR 환경에서도 동기화됩니다.
-   * 
+   *
    * @param level 설정할 로그 레벨
-   * 
+   *
    * @example
    * ```typescript
    * logger.setLogLevel('warn'); // warn과 error만 출력
@@ -1086,12 +1099,7 @@ export class WebLogger<TMetadata extends LogMetadata = LogMetadata> {
       if (isStructuredObject) {
         this.logWithStyle(level, '', sanitizedMessage as LogMetadata, config.style);
       } else {
-        this.logWithStyle(
-          level,
-          String(sanitizedMessage),
-          undefined,
-          config.style,
-        );
+        this.logWithStyle(level, String(sanitizedMessage), undefined, config.style);
       }
     } else if (optionalParams.length === 1 && isMetadataCandidate(optionalParams[0])) {
       // 메시지 + 메타데이터
@@ -1105,14 +1113,18 @@ export class WebLogger<TMetadata extends LogMetadata = LogMetadata> {
       // 여러 파라미터인 경우 (console.x와 동일하게 처리)
       const timestamp = this.getTimestamp();
       const consoleFn = this.getConsoleFunction(level);
-      consoleFn(`${this.prefix} [${timestamp}] ${config.label}`, sanitizedMessage, ...sanitizedParams);
+      consoleFn(
+        `${this.prefix} [${timestamp}] ${config.label}`,
+        sanitizedMessage,
+        ...sanitizedParams,
+      );
     }
   }
 
   /**
    * 디버그 레벨 로깅 (가장 상세한 정보)
    * console.debug()와 동일한 시그니처
-   * 
+   *
    * @param message 로그 메시지
    * @param optionalParams 추가 파라미터 (console.debug와 동일)
    */
@@ -1123,7 +1135,7 @@ export class WebLogger<TMetadata extends LogMetadata = LogMetadata> {
   /**
    * 정보 레벨 로깅 (일반적인 정보)
    * console.info()와 동일한 시그니처
-   * 
+   *
    * @param message 로그 메시지
    * @param optionalParams 추가 파라미터 (console.info와 동일)
    */
@@ -1134,7 +1146,7 @@ export class WebLogger<TMetadata extends LogMetadata = LogMetadata> {
   /**
    * 경고 레벨 로깅
    * console.warn()과 동일한 시그니처
-   * 
+   *
    * @param message 로그 메시지
    * @param optionalParams 추가 파라미터 (console.warn과 동일)
    */
@@ -1146,7 +1158,7 @@ export class WebLogger<TMetadata extends LogMetadata = LogMetadata> {
    * 에러 레벨 로깅
    * console.error()와 동일한 시그니처
    * 프로덕션에서도 항상 활성화됨
-   * 
+   *
    * @param message 로그 메시지
    * @param optionalParams 추가 파라미터 (console.error와 동일)
    */
@@ -1156,12 +1168,12 @@ export class WebLogger<TMetadata extends LogMetadata = LogMetadata> {
 
   /**
    * 일반 로깅 (console.log 호환)
-   * 
+   *
    * `console.log()`와 동일한 시그니처를 제공합니다.
    * 로그 레벨이 `none`인 경우 출력되지 않습니다.
-   * 
+   *
    * @param args 로그할 인자들 (여러 개 가능)
-   * 
+   *
    * @example
    * ```typescript
    * logger.log('Simple message');
@@ -1180,14 +1192,14 @@ export class WebLogger<TMetadata extends LogMetadata = LogMetadata> {
 
   /**
    * 그룹화된 로깅 (복잡한 데이터용)
-   * 
+   *
    * 관련된 로그들을 그룹으로 묶어 구조화된 형태로 표시합니다.
    * 메타데이터가 제공되면 `console.table`을 사용하여 표 형식으로 출력됩니다.
    * `groupEnd()`를 호출하여 그룹을 닫아야 합니다.
-   * 
+   *
    * @param title 그룹 제목
    * @param data 표시할 메타데이터 (선택적, 객체 형태)
-   * 
+   *
    * @example
    * ```typescript
    * logger.group('User Information', { id: 123, name: 'John' });
@@ -1210,9 +1222,9 @@ export class WebLogger<TMetadata extends LogMetadata = LogMetadata> {
 
   /**
    * 그룹 종료
-   * 
+   *
    * `group()`으로 시작한 그룹을 닫습니다.
-   * 
+   *
    * @example
    * ```typescript
    * logger.group('User Information');
@@ -1227,12 +1239,12 @@ export class WebLogger<TMetadata extends LogMetadata = LogMetadata> {
 
   /**
    * 성능 측정 시작
-   * 
+   *
    * 작업의 실행 시간을 측정하기 시작합니다.
    * `timeEnd()`를 호출하여 측정을 종료하고 경과 시간을 출력합니다.
-   * 
+   *
    * @param label 측정할 작업의 레이블 (고유해야 함)
-   * 
+   *
    * @example
    * ```typescript
    * logger.time('API call');
@@ -1247,11 +1259,11 @@ export class WebLogger<TMetadata extends LogMetadata = LogMetadata> {
 
   /**
    * 성능 측정 종료
-   * 
+   *
    * `time()`으로 시작한 측정을 종료하고 경과 시간을 출력합니다.
-   * 
+   *
    * @param label `time()`에서 사용한 레이블과 동일해야 함
-   * 
+   *
    * @example
    * ```typescript
    * logger.time('API call');
@@ -1266,11 +1278,11 @@ export class WebLogger<TMetadata extends LogMetadata = LogMetadata> {
 
   /**
    * 로깅 활성화 여부 확인
-   * 
+   *
    * 로그 레벨이 `none`이 아닌 경우 `true`를 반환합니다.
-   * 
+   *
    * @returns 로깅이 활성화되어 있으면 `true`, 비활성화되어 있으면 `false`
-   * 
+   *
    * @example
    * ```typescript
    * if (logger.isEnabled) {
@@ -1377,14 +1389,14 @@ export class WebLogger<TMetadata extends LogMetadata = LogMetadata> {
 
 /**
  * 기본 WebLogger 인스턴스
- * 
+ *
  * 편의 함수들(`logDebug`, `logInfo` 등)이 사용하는 기본 인스턴스입니다.
  * 즉시 초기화되어 레이스 컨디션을 방지합니다.
- * 
+ *
  * @example
  * ```typescript
  * import { webLogger } from '@cp949/web-logger';
- * 
+ *
  * webLogger.setLogLevel('debug');
  * webLogger.info('Message');
  * ```
@@ -1394,13 +1406,13 @@ export const webLogger = new WebLogger('[APP]');
 /**
  * 민감한 키 추가 (전역 설정)
  * 모든 WebLogger 인스턴스에 적용됩니다.
- * 
+ *
  * @param key 추가할 키 (대소문자 구분 없음)
- * 
+ *
  * @example
  * ```typescript
  * import { addSensitiveKey } from '@cp949/web-logger';
- * 
+ *
  * addSensitiveKey('customSecret');
  * addSensitiveKey('apiSecret');
  * ```
@@ -1412,13 +1424,13 @@ export const addSensitiveKey = (key: string): void => {
 /**
  * 민감한 키 제거 (전역 설정)
  * 모든 WebLogger 인스턴스에 적용됩니다.
- * 
+ *
  * @param key 제거할 키 (대소문자 구분 없음)
- * 
+ *
  * @example
  * ```typescript
  * import { removeSensitiveKey } from '@cp949/web-logger';
- * 
+ *
  * removeSensitiveKey('email'); // email 필터링 비활성화
  * ```
  */
@@ -1428,13 +1440,13 @@ export const removeSensitiveKey = (key: string): void => {
 
 /**
  * 현재 민감한 키 목록 가져오기
- * 
+ *
  * @returns 민감한 키 배열 (정렬된 복사본)
- * 
+ *
  * @example
  * ```typescript
  * import { getSensitiveKeys } from '@cp949/web-logger';
- * 
+ *
  * console.log(getSensitiveKeys());
  * // ['apiKey', 'api_key', 'authorization', 'cardNumber', ...]
  * ```
@@ -1445,11 +1457,11 @@ export const getSensitiveKeys = (): string[] => {
 
 /**
  * 민감한 키 목록을 기본값으로 초기화
- * 
+ *
  * @example
  * ```typescript
  * import { resetSensitiveKeys } from '@cp949/web-logger';
- * 
+ *
  * resetSensitiveKeys(); // 기본 키 목록으로 복원
  * ```
  */

@@ -116,6 +116,7 @@ export default function Page() {
 > `useWebLogger`는 클라이언트 컴포넌트/브라우저 컨텍스트에서만 호출하세요. 서버 사이드에서는 서버 로거나 `if (typeof window !== 'undefined')`와 함께 사용하세요.
 
 #### 서버 사이드 안내
+
 - 서버에서는 플랫폼 로거(예: `console`, pino, winston 등)를 사용하는 편이 좋습니다.
 - `@cp949/web-logger`는 브라우저 전용이므로 SSR 함수 번들에 포함되지 않도록 클라이언트 코드로만 한정하세요.
 

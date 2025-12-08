@@ -2,14 +2,7 @@
 
 import { useState } from 'react';
 import { useWebLogger } from '@cp949/web-logger-react';
-import {
-  logDebug,
-  logInfo,
-  logWarn,
-  logError,
-  setLogLevel,
-  getLogLevel,
-} from '@cp949/web-logger';
+import { logDebug, logInfo, logWarn, logError, setLogLevel, getLogLevel } from '@cp949/web-logger';
 import UserList from './components/UserList';
 import UserDetails from './components/UserDetails';
 
@@ -25,16 +18,13 @@ export default function Home() {
     <div className="container">
       <div className="header">
         <h1>Web Logger Demo</h1>
-        <p>
-          Demo application for @cp949/web-logger and @cp949/web-logger-react
-        </p>
+        <p>Demo application for @cp949/web-logger and @cp949/web-logger-react</p>
         <div className="info">
           <p>
             <strong>Current Log Level:</strong> {logLevel}
           </p>
           <p>
-            Open your browser console to see the log output with automatic
-            sensitive data filtering.
+            Open your browser console to see the log output with automatic sensitive data filtering.
           </p>
         </div>
       </div>
@@ -72,17 +62,13 @@ logError('Error message');`}
           </button>
           <button
             className="button"
-            onClick={() =>
-              logWarn('Rate limit approaching', { remaining: 10 })
-            }
+            onClick={() => logWarn('Rate limit approaching', { remaining: 10 })}
           >
             Warn
           </button>
           <button
             className="button"
-            onClick={() =>
-              logError('Failed to fetch data', new Error('Network error'))
-            }
+            onClick={() => logError('Failed to fetch data', new Error('Network error'))}
           >
             Error
           </button>
@@ -110,8 +96,8 @@ function MyComponent() {
       <div className="section">
         <h2>3. Sensitive Data Filtering</h2>
         <p>
-          The logger automatically filters sensitive data like emails, phone
-          numbers, passwords, etc.
+          The logger automatically filters sensitive data like emails, phone numbers, passwords,
+          etc.
         </p>
         <div className="code-block">
           <code>
@@ -152,34 +138,19 @@ setLogLevel('debug'); // All logs will be shown`}
           </code>
         </div>
         <div className="button-group">
-          <button
-            className="button"
-            onClick={() => handleSetLogLevel('debug')}
-          >
+          <button className="button" onClick={() => handleSetLogLevel('debug')}>
             Debug (All)
           </button>
-          <button
-            className="button"
-            onClick={() => handleSetLogLevel('info')}
-          >
+          <button className="button" onClick={() => handleSetLogLevel('info')}>
             Info
           </button>
-          <button
-            className="button"
-            onClick={() => handleSetLogLevel('warn')}
-          >
+          <button className="button" onClick={() => handleSetLogLevel('warn')}>
             Warn
           </button>
-          <button
-            className="button"
-            onClick={() => handleSetLogLevel('error')}
-          >
+          <button className="button" onClick={() => handleSetLogLevel('error')}>
             Error
           </button>
-          <button
-            className="button"
-            onClick={() => handleSetLogLevel('none')}
-          >
+          <button className="button" onClick={() => handleSetLogLevel('none')}>
             None
           </button>
         </div>
@@ -187,4 +158,3 @@ setLogLevel('debug'); // All logs will be shown`}
     </div>
   );
 }
-

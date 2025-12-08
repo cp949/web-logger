@@ -244,7 +244,7 @@ describe('WebLogger', () => {
     it('같은 값의 마스킹 결과가 캐시되어야 함', () => {
       const email = 'user@example.com';
       const password = 'mypassword123';
-      
+
       // 첫 번째 로깅
       logger.info('First', { email, password });
       expect(consoleSpy.table).toHaveBeenCalled();
@@ -265,7 +265,7 @@ describe('WebLogger', () => {
 
     it('다른 키에 같은 값이 있어도 다른 마스킹 결과를 반환해야 함', () => {
       const value = 'test@example.com';
-      
+
       // email 키로 마스킹
       logger.info('Email', { email: value });
       expect(consoleSpy.table).toHaveBeenCalled();
