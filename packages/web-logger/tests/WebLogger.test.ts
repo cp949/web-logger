@@ -1,14 +1,14 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   WebLogger,
   addSensitiveKey,
-  removeSensitiveKey,
+  addSensitivePatterns,
   getSensitiveKeys,
+  removeSensitiveKey,
   resetSensitiveKeys,
   resetSensitivePatterns,
-  setSensitivePatterns,
-  addSensitivePatterns,
   setSensitivePatternWarnings,
+  setSensitivePatterns,
 } from '../src/WebLogger';
 
 describe('WebLogger', () => {
@@ -49,8 +49,8 @@ describe('WebLogger', () => {
     // localStorage 초기화
     localStorageMock.clear();
 
-    // 새로운 로거 인스턴스 생성
-    logger = new WebLogger('[TEST]');
+    // 새로운 로거 인스턴스 생성 (테스트를 위해 마스킹 활성화)
+    logger = new WebLogger({ prefix: '[TEST]', enableMasking: true });
 
     // 로그 레벨을 debug로 초기화 (개발 환경 기본값)
     logger.setLogLevel('debug');
@@ -283,11 +283,93 @@ describe('WebLogger', () => {
     });
   });
 
+  describe('enableMasking 옵션', () => {
+    it('개발 모드에서는 기본적으로 마스킹이 비활성화되어야 함', () => {
+      const originalEnv = process.env.NODE_ENV;
+      process.env.NODE_ENV = 'development';
+
+      vi.clearAllMocks();
+      const devLogger = new WebLogger('[Dev]');
+      const payload = { email: 'user@example.com', password: 'secret123' };
+
+      devLogger.info('User data:', payload);
+
+      expect(consoleSpy.table).toHaveBeenCalled();
+      const tableData = consoleSpy.table.mock.calls[0][0] as any;
+      // 개발 모드에서는 마스킹되지 않은 원본 값이 출력되어야 함
+      expect(tableData.email).toBe('user@example.com');
+      expect(tableData.password).toBe('secret123');
+
+      process.env.NODE_ENV = originalEnv;
+    });
+
+    it('프로덕션 모드에서는 기본적으로 마스킹이 활성화되어야 함', () => {
+      const originalEnv = process.env.NODE_ENV;
+      process.env.NODE_ENV = 'production';
+
+      vi.clearAllMocks();
+      const prodLogger = new WebLogger('[Prod]');
+      const payload = { email: 'user@example.com', password: 'secret123' };
+
+      prodLogger.info('User data:', payload);
+
+      expect(consoleSpy.table).toHaveBeenCalled();
+      const tableData = consoleSpy.table.mock.calls[0][0] as any;
+      // 프로덕션 모드에서는 마스킹된 값이 출력되어야 함
+      expect(tableData.email).toBe('use***@example.com');
+      expect(tableData.password).toBe('se***');
+
+      process.env.NODE_ENV = originalEnv;
+    });
+
+    it('enableMasking: true로 명시하면 개발 모드에서도 마스킹이 활성화되어야 함', () => {
+      const originalEnv = process.env.NODE_ENV;
+      process.env.NODE_ENV = 'development';
+
+      vi.clearAllMocks();
+      const logger = new WebLogger({ prefix: '[Test]', enableMasking: true });
+      const payload = { email: 'user@example.com', password: 'secret123' };
+
+      logger.info('User data:', payload);
+
+      expect(consoleSpy.table).toHaveBeenCalled();
+      const tableData = consoleSpy.table.mock.calls[0][0] as any;
+      // enableMasking: true이므로 마스킹되어야 함
+      expect(tableData.email).toBe('use***@example.com');
+      expect(tableData.password).toBe('se***');
+
+      process.env.NODE_ENV = originalEnv;
+    });
+
+    it('enableMasking: false로 명시하면 프로덕션 모드에서도 마스킹이 비활성화되어야 함', () => {
+      const originalEnv = process.env.NODE_ENV;
+      process.env.NODE_ENV = 'production';
+
+      vi.clearAllMocks();
+      const logger = new WebLogger({ prefix: '[Test]', enableMasking: false });
+      const payload = { email: 'user@example.com', password: 'secret123' };
+
+      logger.info('User data:', payload);
+
+      expect(consoleSpy.table).toHaveBeenCalled();
+      const tableData = consoleSpy.table.mock.calls[0][0] as any;
+      // enableMasking: false이므로 마스킹되지 않아야 함
+      expect(tableData.email).toBe('user@example.com');
+      expect(tableData.password).toBe('secret123');
+
+      process.env.NODE_ENV = originalEnv;
+    });
+  });
+
   describe('구성 옵션', () => {
     it('생성 시 민감 키를 교체할 수 있어야 함', () => {
       vi.clearAllMocks();
 
-      const customLogger = new WebLogger({ prefix: '[Opt]', sensitiveKeys: ['custom'] });
+      const customLogger = new WebLogger({
+        prefix: '[Opt]',
+        sensitiveKeys: ['custom'],
+        enableMasking: true,
+      });
       customLogger.info('payload', { custom: 'secret', password: 'visible' });
 
       expect(consoleSpy.table).toHaveBeenCalled();
@@ -302,6 +384,7 @@ describe('WebLogger', () => {
       const customLogger = new WebLogger({
         prefix: '[Opt]',
         sensitivePatterns: { ticket: /TICKET-\d+/g },
+        enableMasking: true,
       });
 
       customLogger.debug('Ticket:', 'TICKET-123');

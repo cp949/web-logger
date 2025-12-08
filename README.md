@@ -103,6 +103,29 @@ console.log(getLogLevel()); // 'debug'
 
 ### 4. Automatic Sensitive Data Filtering
 
+By default, masking behavior depends on the environment:
+
+- **Development mode**: Masking is **disabled** by default (for easier debugging)
+- **Production mode**: Masking is **enabled** by default (for security)
+
+You can override this behavior using the `enableMasking` option:
+
+```typescript
+import { WebLogger } from '@cp949/web-logger';
+
+// Development mode: masking disabled by default
+const devLogger = new WebLogger('[App]');
+devLogger.info({ email: 'user@example.com' }); // → email: 'user@example.com' (not masked)
+
+// Enable masking in development
+const secureDevLogger = new WebLogger({ enableMasking: true });
+secureDevLogger.info({ email: 'user@example.com' }); // → email: 'use***@example.com'
+
+// Disable masking in production
+const debugProdLogger = new WebLogger({ enableMasking: false });
+debugProdLogger.info({ email: 'user@example.com' }); // → email: 'user@example.com' (not masked)
+```
+
 Web Logger provides two types of data masking with clear priority:
 
 #### Key-based Masking (Higher Priority)

@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { WebLogger } from '../src/WebLogger';
 import {
   convertToConsoleLogger,
@@ -41,7 +41,7 @@ describe('convertToConsoleLogger', () => {
     localStorageMock.clear();
 
     // 새로운 로거 인스턴스 생성
-    logger = new WebLogger('[TEST]');
+    logger = new WebLogger({ prefix: '[TEST]', enableMasking: true });
     logger.setLogLevel('debug');
 
     // console 메서드들을 모킹

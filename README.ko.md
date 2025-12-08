@@ -103,6 +103,29 @@ console.log(getLogLevel()); // 'debug'
 
 ### 4. 민감한 정보 자동 필터링
 
+기본적으로 마스킹 동작은 환경에 따라 다릅니다:
+
+- **개발 모드**: 마스킹이 기본적으로 **비활성화**됩니다 (디버깅 편의를 위해)
+- **프로덕션 모드**: 마스킹이 기본적으로 **활성화**됩니다 (보안을 위해)
+
+`enableMasking` 옵션을 사용하여 이 동작을 오버라이드할 수 있습니다:
+
+```typescript
+import { WebLogger } from '@cp949/web-logger';
+
+// 개발 모드: 기본적으로 마스킹 비활성화
+const devLogger = new WebLogger('[App]');
+devLogger.info({ email: 'user@example.com' }); // → email: 'user@example.com' (마스킹 안 됨)
+
+// 개발 모드에서 마스킹 활성화
+const secureDevLogger = new WebLogger({ enableMasking: true });
+secureDevLogger.info({ email: 'user@example.com' }); // → email: 'use***@example.com'
+
+// 프로덕션 모드에서 마스킹 비활성화
+const debugProdLogger = new WebLogger({ enableMasking: false });
+debugProdLogger.info({ email: 'user@example.com' }); // → email: 'user@example.com' (마스킹 안 됨)
+```
+
 Web Logger는 명확한 우선순위를 가진 두 가지 데이터 마스킹 방식을 제공합니다:
 
 #### 키 기반 마스킹 (높은 우선순위)
