@@ -1,6 +1,6 @@
 {
   "name": "@cp949/web-logger-react",
-  "version": "1.0.4",
+  "version": "1.0.5",
   "description": "React hooks for @cp949/web-logger",
   "type": "module",
   "main": "./dist/index.cjs",
