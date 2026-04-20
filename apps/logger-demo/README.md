@@ -92,7 +92,7 @@ setLogLevel('debug'); // All logs will be shown
 
 ## Tech Stack
 
-- **Next.js**: 16.0.8
+- **Next.js**: 16.2.4
 - **React**: 19
 - **TypeScript**: 5.9.3
 - **@cp949/web-logger**: Workspace dependency
