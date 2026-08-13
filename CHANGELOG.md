@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.6] - 2026-08-14
+
+### Security
+
+- Updated the development dependency tree to resolve all findings reported by `pnpm audit`
+- Upgraded Vite to 8.2.1 and pinned esbuild to 0.28.2 through workspace overrides
+
+### Changed
+
+- Upgraded TypeScript to 6.0.3, Vitest to 4.1.10, Turborepo to 2.10.9, and Biome to 2.5.8
+- Updated the development task graph so persistent watch tasks no longer depend on other persistent tasks
+- Reworked the root and package READMEs around the current public API and workspace commands
+
 ## [1.0.3] - 2025-11-30
 
 ### Changed

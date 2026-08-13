@@ -25,7 +25,7 @@ export default function UserList() {
       <h3>UserList Component</h3>
       <p>This component uses useWebLogger('[UserList]')</p>
       <p>Check console for logs prefixed with [UserList]</p>
-      <button className="button" onClick={handleClick}>
+      <button type="button" className="button" onClick={handleClick}>
         Click to Log
       </button>
     </div>

@@ -12,11 +12,13 @@
   {
     "name": "@cp949/web-logger-react - ESM",
     "path": "packages/web-logger-react/dist/index.js",
+    "disablePlugins": ["@size-limit/esbuild"],
     "limit": "1 KB"
   },
   {
     "name": "@cp949/web-logger-react - CJS",
     "path": "packages/web-logger-react/dist/index.cjs",
+    "disablePlugins": ["@size-limit/esbuild"],
     "limit": "1 KB"
   }
 ]

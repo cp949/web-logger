@@ -23,7 +23,9 @@ describe('convertToConsoleLogger', () => {
         delete storage[key];
       }),
       clear: vi.fn(() => {
-        Object.keys(storage).forEach((key) => delete storage[key]);
+        Object.keys(storage).forEach((key) => {
+          delete storage[key];
+        });
       }),
     };
     Object.defineProperty(window, 'localStorage', {

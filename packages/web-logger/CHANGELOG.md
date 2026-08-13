@@ -1,5 +1,16 @@
 # @cp949/web-logger Changelog
 
+## [1.0.6] - 2026-08-14
+
+### Security
+
+- Updated the workspace development dependency tree until `pnpm audit` reported no vulnerabilities
+
+### Changed
+
+- Updated the build and test toolchain for Vite 8 and TypeScript 6
+- Rewrote the package README to match the current public API and runtime behavior
+
 ## [1.0.3] - 2025-11-30
 
 ### Changed

@@ -15,5 +15,3 @@ typedLogger.info('ok', { userId: 'u1' });
 // due to the flexible signature for console.log compatibility
 typedLogger.info('wrong', { userId: 'u2', email: 123 });
 typedLogger.info('missing', { email: 'a@b.com' });
-
-export {};

@@ -43,10 +43,10 @@ export default function UserDetails() {
       <p>Check console for logs prefixed with [UserDetails]</p>
       <p>Count: {count}</p>
       <div className="button-group">
-        <button className="button" onClick={handleIncrement}>
+        <button type="button" className="button" onClick={handleIncrement}>
           Increment (Log Info)
         </button>
-        <button className="button" onClick={handleError}>
+        <button type="button" className="button" onClick={handleError}>
           Simulate Error
         </button>
       </div>

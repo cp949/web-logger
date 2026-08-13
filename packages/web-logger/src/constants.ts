@@ -5,9 +5,9 @@ import type { LogLevel, LogLevelConfig, SensitivePatternMap } from './types';
  */
 export const DEFAULT_SENSITIVE_PATTERNS: SensitivePatternMap = {
   email: /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b/gi,
-  card: /\b\d{4}[\s\-\.\/]?\d{4}[\s\-\.\/]?\d{4}[\s\-\.\/]?\d{3,4}\b/g,
-  phone: /(\+82|0)[\s\-\.]?\d{1,2}[\s\-\.]?\d{3,4}[\s\-\.]?\d{4}/g,
-  ssn: /\b\d{6}[\s\-]?\d{7}\b/g,
+  card: /\b\d{4}[\s\-./]?\d{4}[\s\-./]?\d{4}[\s\-./]?\d{3,4}\b/g,
+  phone: /(\+82|0)[\s\-.]?\d{1,2}[\s\-.]?\d{3,4}[\s\-.]?\d{4}/g,
+  ssn: /\b\d{6}[\s-]?\d{7}\b/g,
   jwt: /Bearer\s+[A-Za-z0-9\-_]+\.[A-Za-z0-9\-_]+\.[A-Za-z0-9\-_]+/g,
   apiKey: /[a-zA-Z0-9]{32,}/g,
   password: /password['":\s]*['"'][^'"]*['"']/gi,

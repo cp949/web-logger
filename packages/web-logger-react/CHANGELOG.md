@@ -1,5 +1,16 @@
 # @cp949/web-logger-react Changelog
 
+## [1.0.6] - 2026-08-14
+
+### Security
+
+- Updated the workspace development dependency tree until `pnpm audit` reported no vulnerabilities
+
+### Changed
+
+- Updated the React test toolchain for Vite 8, Vitest 4.1, and TypeScript 6
+- Rewrote the package README with the current React and Next.js usage requirements
+
 ## [1.0.3] - 2025-11-30
 
 ### Changed

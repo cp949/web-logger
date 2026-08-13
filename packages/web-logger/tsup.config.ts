@@ -5,13 +5,18 @@ const NODE_ENV = process.env.NODE_ENV || 'production';
 const INITIAL_LOG_LEVEL = process.env.WEB_LOGGER_LOG_LEVEL || '';
 const isDev = NODE_ENV === 'development';
 
-export default defineConfig({
+export default defineConfig((options) => ({
   entry: ['src/index.ts'],
   format: ['esm', 'cjs'],
-  dts: true,
+  dts: {
+    compilerOptions: {
+      // tsup DTS 번들링이 TS 6에서 baseUrl을 내부 주입한다.
+      ignoreDeprecations: '6.0',
+    },
+  },
   splitting: false,
   sourcemap: true, // 디버깅을 위한 소스맵 생성
-  clean: true,
+  clean: !options.watch,
   treeshake: {
     preset: 'smallest', // 가장 공격적인 Tree Shaking
   },
@@ -39,4 +44,4 @@ export default defineConfig({
   esbuildOptions(options) {
     options.legalComments = 'none'; // 라이선스 주석만 유지
   },
-});
+}));

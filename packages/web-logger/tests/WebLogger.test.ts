@@ -32,7 +32,9 @@ describe('WebLogger', () => {
         delete storage[key];
       }),
       clear: vi.fn(() => {
-        Object.keys(storage).forEach((key) => delete storage[key]);
+        Object.keys(storage).forEach((key) => {
+          delete storage[key];
+        });
       }),
     };
     Object.defineProperty(window, 'localStorage', {
@@ -594,7 +596,7 @@ describe('WebLogger', () => {
   describe('깊이 제한', () => {
     it('10단계 이상 중첩된 객체를 제한해야 함', () => {
       // 12단계 깊이의 객체 생성
-      let deep: any = { level: 1 };
+      const deep: any = { level: 1 };
       let current = deep;
       for (let i = 2; i <= 12; i++) {
         current.next = { level: i };
@@ -1257,8 +1259,8 @@ describe('WebLogger', () => {
     });
 
     it('모든 WebLogger 인스턴스가 동일한 민감한 키 목록을 공유해야 함', () => {
-      const logger1 = new WebLogger('[App1]');
-      const logger2 = new WebLogger('[App2]');
+      new WebLogger('[App1]');
+      new WebLogger('[App2]');
 
       addSensitiveKey('sharedKey');
 

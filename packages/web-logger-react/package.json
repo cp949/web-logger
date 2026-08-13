@@ -1,6 +1,6 @@
 {
   "name": "@cp949/web-logger-react",
-  "version": "1.0.5",
+  "version": "1.0.6",
   "description": "React hooks for @cp949/web-logger",
   "type": "module",
   "main": "./dist/index.cjs",
@@ -25,18 +25,19 @@
   },
   "devDependencies": {
     "@cp949/web-logger": "workspace:*",
-    "@testing-library/react": "^16.3.0",
-    "@types/node": "^24.10.1",
-    "@types/react": "^19.2.7",
-    "@types/react-dom": "^19.2.3",
-    "@vitejs/plugin-react": "^5.1.2",
-    "@vitest/coverage-v8": "^4.0.15",
-    "jsdom": "^27.3.0",
-    "react": "^19.2.1",
-    "react-dom": "^19.2.1",
+    "@testing-library/react": "^16.3.2",
+    "@types/node": "^26.2.0",
+    "@types/react": "^19.2.18",
+    "@types/react-dom": "^19.2.4",
+    "@vitejs/plugin-react": "^6.0.5",
+    "@vitest/coverage-v8": "^4.1.10",
+    "jsdom": "^30.0.1",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8",
     "tsup": "^8.5.1",
-    "typescript": "^5.9.3",
-    "vitest": "^4.0.15"
+    "typescript": "^6.0.3",
+    "vite": "^8.2.1",
+    "vitest": "^4.1.10"
   },
   "scripts": {
     "build": "tsup",

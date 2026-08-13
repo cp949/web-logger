@@ -18,5 +18,3 @@ declare global {
     __WEB_LOGGER_LOG_LEVEL__?: LogLevel;
   }
 }
-
-export {};

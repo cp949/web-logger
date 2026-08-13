@@ -3,7 +3,7 @@
   "private": true,
   "scripts": {
     "build": "turbo run build",
-    "dev": "turbo run dev",
+    "dev": "turbo run build --filter=@cp949/web-logger --filter=@cp949/web-logger-react && turbo run dev",
     "lint": "turbo run lint",
     "typecheck": "turbo run typecheck",
     "test": "turbo run test",
@@ -18,24 +18,28 @@
     "demo": "pnpm ts-node packages/web-logger/scripts/demo.ts"
   },
   "devDependencies": {
-    "@size-limit/file": "^12.0.0",
-    "@size-limit/preset-small-lib": "^12.0.0",
+    "@biomejs/biome": "2.5.8",
+    "@size-limit/file": "^13.0.3",
+    "@size-limit/preset-small-lib": "^13.0.3",
     "@testing-library/dom": "^10.4.1",
-    "@biomejs/biome": "2.4.12",
     "rollup-plugin-visualizer": "^7.0.1",
-    "size-limit": "^12.0.0",
-    "turbo": "^2.6.3",
-    "typescript": "^5.9.3"
+    "size-limit": "^13.0.3",
+    "turbo": "^2.10.9",
+    "typescript": "^6.0.3"
   },
   "pnpm": {
     "overrides": {
-      "vite": "^7.3.2",
+      "vite": "^8.2.1",
       "rollup": "^4.59.0",
+      "esbuild": "0.28.2",
       "picomatch@>=4 <4.0.4": "4.0.4"
-    }
+    },
+    "onlyBuiltDependencies": [
+      "esbuild"
+    ]
   },
   "packageManager": "pnpm@10.25.0",
   "engines": {
-    "node": ">=18.0.0"
+    "node": "^20.19.0 || >=22.12.0"
   }
 }

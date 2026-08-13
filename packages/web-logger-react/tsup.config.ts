@@ -1,12 +1,17 @@
 import { defineConfig } from 'tsup';
 
-export default defineConfig({
+export default defineConfig((options) => ({
   entry: ['src/index.ts'],
   format: ['esm', 'cjs'],
-  dts: true,
+  dts: {
+    compilerOptions: {
+      // tsup DTS 번들링이 TS 6에서 baseUrl을 내부 주입한다.
+      ignoreDeprecations: '6.0',
+    },
+  },
   splitting: false,
   sourcemap: true,
-  clean: true,
+  clean: !options.watch,
   treeshake: {
     preset: 'smallest',
   },
@@ -17,4 +22,4 @@ export default defineConfig({
   external: ['react', 'react-dom', '@cp949/web-logger'],
   bundle: true,
   tsconfig: './tsconfig.json',
-});
+}));

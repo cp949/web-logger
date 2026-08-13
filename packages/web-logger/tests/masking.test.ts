@@ -290,7 +290,7 @@ describe('마스킹 로직', () => {
     });
 
     it('10단계 이상 중첩된 객체를 제한해야 함', () => {
-      let deep: any = {};
+      const deep: any = {};
       let current = deep;
       // MAX_DEPTH가 10이므로 11단계부터 제한됨
       for (let i = 0; i < 12; i++) {

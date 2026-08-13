@@ -3,7 +3,7 @@
  */
 
 import { useMemo } from 'react';
-import { createPrefixedLogger, WebLogger, webLogger } from '@cp949/web-logger';
+import { createPrefixedLogger, type WebLogger, webLogger } from '@cp949/web-logger';
 
 /**
  * React hook for creating a WebLogger instance with optional prefix

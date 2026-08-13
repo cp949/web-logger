@@ -1,726 +1,115 @@
-# @cp949/web-logger
+# web-logger
 
-[![npm version](https://img.shields.io/npm/v/@cp949/web-logger.svg)](https://www.npmjs.com/package/@cp949/web-logger)
-[![Bundle Size](<https://img.shields.io/badge/Bundle%20Size-3.16KB%20(brotli)-green>)](BUNDLE_SIZE.md)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![TypeScript](https://img.shields.io/badge/TypeScript-5.0%2B-blue)](https://www.typescriptlang.org/)
+TypeScript monorepo for a browser-oriented logger and its React hook.
 
 **Languages:** [English](README.md) | [한국어](README.ko.md)
 
-📦 **Package:** [npm](https://www.npmjs.com/package/@cp949/web-logger)
+## Packages
 
-A production-optimized web logging library. Provides rich debugging information in development environments and automatically filters sensitive information while optimizing performance in production.
+| Package | Purpose |
+| --- | --- |
+| [`@cp949/web-logger`](packages/web-logger/README.md) | Log levels, prefixed output, structured data, and sensitive-data masking |
+| [`@cp949/web-logger-react`](packages/web-logger-react/README.md) | A memoized React hook for component-scoped loggers |
 
-## ✨ Key Features
+The repository also contains [`logger-demo`](apps/logger-demo), a Vite application used to try both
+packages in a browser.
 
-### 🔐 Security First
+## Install a package
 
-- Automatic sensitive data filtering: Email, phone numbers, card numbers, JWT tokens, passwords, etc. are automatically masked
-- Prototype pollution prevention: Filters dangerous keys like `__proto__`, `constructor`
-- ReDoS attack prevention: String length limit (5,000 characters) and regex execution time limit (100ms)
-- Safe circular reference handling: Maximum depth limit of 10 levels
-
-### ⚡ Performance Optimized
-
-- **Ultra-lightweight**: Only 3.16KB (Brotli), 7KB (Gzip)
-- Tree Shaking support: Dead code elimination possible through build-time constant injection
-- Regex caching: Performance improvement through reuse of compiled regex patterns
-- Conditional logging: Log level check performed first to prevent unnecessary processing
-- Regex timeout: Execution time limit to prevent ReDoS attacks
-- ESM/CJS dual package: Supports all environments
-- SSR/CSR compatibility: Works seamlessly in both server-side rendering and client-side environments
-
-### 🎨 Developer Experience
-
-- Colorful console output: Color-coded by log level
-- Automatic timestamp addition: HH:MM:SS format
-- Structured data display: Metadata display using `console.table`
-- 100% type safe: Full TypeScript support, no any types
-
-### 🛠️ Flexible Configuration
-
-- Various log levels: debug, info, warn, error, none
-- Runtime level control: Dynamic changes possible even in production
-- Multiple configuration sources: Environment variables, global variables
-
-## 📦 Installation
-
-Install from [npm](https://www.npmjs.com/package/@cp949/web-logger):
-
-```bash
-npm install @cp949/web-logger
-```
-
-or
-
-```bash
-yarn add @cp949/web-logger
-```
-
-or
+Install the core package for plain TypeScript or JavaScript projects:
 
 ```bash
 pnpm add @cp949/web-logger
 ```
 
-## 📖 Quick Usage
+React applications need both packages:
 
-### 1. Basic Logging
-
-```typescript
-import { logDebug, logInfo, logWarn, logError } from '@cp949/web-logger';
-
-logDebug('Debug information');
-logInfo('General information');
-logWarn('Warning message');
-logError('Error occurred!');
+```bash
+pnpm add @cp949/web-logger @cp949/web-logger-react
 ```
 
-### 2. Instance Usage
+## Quick start
 
 ```typescript
-import { WebLogger } from '@cp949/web-logger';
+import { logError, logInfo, setLogLevel } from '@cp949/web-logger';
 
-const logger = new WebLogger('[MyApp]');
-logger.debug('Debug');
-logger.info('Info');
-logger.warn('Warning');
-logger.error('Error');
+setLogLevel('info');
+
+logInfo('Application started');
+logError('Request failed', { status: 500 });
 ```
 
-### 3. Log Level Control
-
-```typescript
-import { setLogLevel, getLogLevel } from '@cp949/web-logger';
-
-// Change log level (immediately applied)
-setLogLevel('warn'); // Only warn and error output
-setLogLevel('debug'); // All logs output
-
-// Check current level
-console.log(getLogLevel()); // 'debug'
-```
-
-### 4. Automatic Sensitive Data Filtering
-
-By default, masking behavior depends on the environment:
-
-- **Development mode**: Masking is **disabled** by default (for easier debugging)
-- **Production mode**: Masking is **enabled** by default (for security)
-
-You can override this behavior using the `enableMasking` option:
-
-```typescript
-import { WebLogger } from '@cp949/web-logger';
-
-// Development mode: masking disabled by default
-const devLogger = new WebLogger('[App]');
-devLogger.info({ email: 'user@example.com' }); // → email: 'user@example.com' (not masked)
-
-// Enable masking in development
-const secureDevLogger = new WebLogger({ enableMasking: true });
-secureDevLogger.info({ email: 'user@example.com' }); // → email: 'use***@example.com'
-
-// Disable masking in production
-const debugProdLogger = new WebLogger({ enableMasking: false });
-debugProdLogger.info({ email: 'user@example.com' }); // → email: 'user@example.com' (not masked)
-```
-
-Web Logger provides two types of data masking with clear priority:
-
-#### Key-based Masking (Higher Priority)
-
-When object property keys match sensitive keywords, the value is partially masked showing only a few characters:
-
-```typescript
-// Sensitive keys are partially masked showing first few characters
-logDebug('User data:', {
-  password: 'mypassword123', // → password: 'my***'
-  email: 'user@example.com', // → email: 'use***@example.com'
-  apiKey: 'key123456789', // → apiKey: 'ke***'
-});
-```
-
-**Sensitive keys include:** `password`, `pwd`, `passwd`, `token`, `apiKey`, `api_key`, `accessToken`, `refreshToken`, `authToken`, `authorization`, `email`, `phone`, `phoneNumber`, `mobile`, `creditCard`, `cardNumber`, `card_number`, `ssn`, `socialSecurityNumber`, `residentNumber`, `resident_number`, `secret`, `secretKey`, `privateKey`, `private_key`, `sessionId`, `session_id`, `cookie`, `cookies`
-
-#### Pattern-based Masking (Lower Priority)
-
-For non-sensitive keys, values are scanned for patterns and masked accordingly:
-
-```typescript
-// Pattern detection in regular property values
-logDebug('Contact info:', {
-  userEmail: 'user@example.com', // → userEmail: '[EMAIL]'
-  description: 'Call 010-1234-5678', // → description: 'Call [PHONE]'
-  payment: '1234-5678-9012-3456', // → payment: '[CARD]'
-});
-```
-
-**Detected patterns:** Email addresses → `[EMAIL]`, Credit cards → `[CARD]`, Phone numbers → `[PHONE]`, JWT tokens → `[JWT]`, API keys → `[APIKEY]`, Passwords → `[PASSWORD]`
-
-#### Priority Example
-
-```typescript
-// Key-based masking takes precedence
-const data = {
-  email: 'user@example.com', // Key matches → 'use***@example.com' (not '[EMAIL]')
-  userInfo: 'user@example.com', // Key doesn't match → '[EMAIL]'
-};
-```
-
-#### Detailed Masking Behavior
-
-1. **Key-based masking (first check)**: If the property key matches a sensitive keyword, the value is partially masked:
-   - Email: First 3 characters + `***` + `@` + domain (e.g., `use***@example.com`)
-   - Password: First 2 characters + `***` (e.g., `my***`)
-   - Others: First 2 characters + `***` (e.g., `se***`)
-
-2. **Pattern-based masking (fallback)**: If the key is not sensitive, the value is scanned for patterns:
-   - Email addresses: `user@example.com` → `[EMAIL]`
-   - Credit cards: `1234-5678-9012-3456` → `[CARD]`
-   - Phone numbers: `010-1234-5678` → `[PHONE]`
-   - JWT tokens: `Bearer eyJ...` → `Bearer [JWT]`
-   - API keys: 32+ character strings → `[APIKEY]`
-   - Passwords: Strings containing `password: "..."` → `[PASSWORD]`
-
-3. **Built-in objects**: Map, Set, Date, TypedArray, and Buffer are handled specially (see [Built-in Objects Handling](#-built-in-objects-handling) section).
-
-4. **Nested objects**: Recursive sanitization up to 10 levels deep to prevent circular references.
-
-### 5. Console API Compatibility
-
-```typescript
-import { WebLogger, convertToConsoleLogger } from '@cp949/web-logger';
-
-const webLogger = new WebLogger('[App]');
-const consoleCompatible = convertToConsoleLogger(webLogger);
-
-// Can completely replace console (same signature as console API)
-consoleCompatible.debug('message', obj1, obj2);
-consoleCompatible.info('info', data);
-consoleCompatible.warn('warning');
-consoleCompatible.error('error', error);
-consoleCompatible.log('log message');
-
-// Easy migration from existing console code
-// const console = convertToConsoleLogger(webLogger);
-```
-
-### 6. Advanced Features
-
-```typescript
-import { WebLogger } from '@cp949/web-logger';
-
-const logger = new WebLogger('[MyApp]');
-
-// Grouped logging
-logger.group('User Information', userData);
-logger.debug('Detailed information...');
-logger.groupEnd();
-
-// Performance measurement
-logger.time('API call');
-// ... async operation ...
-logger.timeEnd('API call'); // API call: 123ms
-
-// Dynamic log level control (immediately applied, no refresh needed)
-logger.setLogLevel('warn'); // Only warn and error output
-logger.setLogLevel('debug'); // All logs output
-
-// Check log level
-console.log(logger.currentLogLevel); // 'debug'
-console.log(logger.isEnabled); // true
-
-// Multiple parameters supported (same as console API)
-logger.debug('User data:', userData, requestInfo);
-logger.error('Failed to fetch:', error, { endpoint, status });
-```
-
-### 7. Component-scoped Prefix (React)
+For React components:
 
 ```tsx
-import { useEffect, useMemo } from 'react';
-import { createPrefixedLogger } from '@cp949/web-logger';
+import { useEffect } from 'react';
+import { useWebLogger } from '@cp949/web-logger-react';
 
-function UserList() {
-  const logger = useMemo(() => createPrefixedLogger('[UserList]'), []);
+function Checkout() {
+  const logger = useWebLogger('[Checkout]');
 
   useEffect(() => {
-    logger.info('hello users'); // [UserList] hello users
+    logger.info('Mounted');
   }, [logger]);
 
-  return <div>UserList</div>;
+  return null;
 }
 ```
 
-## 🌍 SSR Support
+See the package READMEs for configuration details and the complete public API.
 
-This library fully supports Server-Side Rendering (SSR) environments like Next.js, Remix, Nuxt, and other frameworks.
+## Repository setup
 
-### How It Works
+Requirements:
 
-The library automatically detects the environment and uses the appropriate global object:
-
-- **Browser (CSR)**: Uses `window.__WEB_LOGGER_LOG_LEVEL__`
-- **Server (SSR)**: Uses `globalThis.__WEB_LOGGER_LOG_LEVEL__`
-
-The log level is shared across all WebLogger instances via `globalThis`, ensuring consistent behavior in both server and client environments.
-
-### Key Features for SSR
-
-1. **No Runtime Errors**: Works without throwing errors in Node.js environments
-2. **Shared Log Level**: Log levels are shared across all instances via `globalThis`
-3. **Same Security Policies**: Sensitive data masking works identically on server and client
-4. **Zero Configuration**: No special setup required for SSR frameworks
-5. **Built-in Objects Support**: Map, Set, Date, TypedArray, and Buffer are properly handled in both environments
-
-### Usage in Next.js App Router
-
-```typescript
-// app/page.tsx
-import { logDebug, logInfo } from '@cp949/web-logger';
-
-export default function Page() {
-  logInfo('Page component rendered'); // Works on both server and client
-
-  return <div>Hello World</div>;
-}
-
-// app/api/route.ts
-import { logDebug, logError } from '@cp949/web-logger';
-
-export async function GET() {
-  try {
-    logDebug('API route called'); // Works in Node.js
-    // ... your logic
-    return Response.json({ message: 'Hello' });
-  } catch (error) {
-    logError('API error:', error); // Properly masks sensitive data
-    return Response.json({ error: 'Internal error' }, { status: 500 });
-  }
-}
-```
-
-### Log Level Synchronization
-
-Log levels set in one environment are automatically synchronized:
-
-```typescript
-// Server-side (Next.js API route)
-import { setLogLevel } from '@cp949/web-logger';
-
-export async function GET() {
-  setLogLevel('debug'); // Sets globalThis.__WEB_LOGGER_LOG_LEVEL__
-  // All WebLogger instances (server and client) will use 'debug'
-}
-
-// Client-side (React component)
-import { WebLogger } from '@cp949/web-logger';
-
-const logger = new WebLogger('[App]');
-logger.debug('This will work'); // Uses the level set on server
-```
-
-### Dynamic Import (Optional)
-
-For complete control over when the logger loads:
-
-```typescript
-// Client-only logging
-if (typeof window !== 'undefined') {
-  const { logDebug } = await import('@cp949/web-logger');
-  logDebug('Client-side only message');
-}
-```
-
-## 🔧 Configuration
-
-### Log Level Configuration Priority
-
-Log levels are determined in the following priority order:
-
-1. Runtime global variables (highest priority, immediately applied)
-
-```javascript
-// Browser environment
-window.__WEB_LOGGER_LOG_LEVEL__ = 'debug';
-
-// Node.js/SSR environment
-globalThis.__WEB_LOGGER_LOG_LEVEL__ = 'debug';
-```
-
-Changes are immediately applied to all WebLogger instances.
-
-2. Build-time constant (optional, injected at build time)
-
-```typescript
-// In your bundler config (tsup, webpack, vite, etc.)
-define: {
-  __INITIAL_LOG_LEVEL__: JSON.stringify('warn');
-}
-```
-
-Used for setting initial log level at build time.
-
-3. Runtime environment variable
+- Node.js `^20.19.0 || >=22.12.0`
+- pnpm `10.25.0`
 
 ```bash
-WEB_LOGGER_LOG_LEVEL=debug npm run dev
+pnpm install
+pnpm dev
 ```
 
-Used when global variables and build-time constants are not set.
-
-4. Development mode detection
-
-- Automatically detects development environment using NODE_ENV
-
-5. Default value
-
-- Development environment: `debug` (all logs output)
-- Production environment: `warn` (only warn and error output)
-
-> Note: Using the `setLogLevel()` method immediately applies to all WebLogger instances and also saves to the global variable.
-
-### Log Level Description
-
-| Level   | Description                   | Production Default |
-| ------- | ----------------------------- | ------------------ |
-| `debug` | All logs output               | ❌                 |
-| `info`  | Info, warning, error output   | ❌                 |
-| `warn`  | Only warning and error output | ✅                 |
-| `error` | Only error output             | ✅                 |
-| `none`  | All logs disabled             | ❌                 |
-
-## 🛡️ Security Features
-
-### Automatically Filtered Information
-
-| Data Type    | Masking Result | Example                                   |
-| ------------ | -------------- | ----------------------------------------- |
-| Email        | `[EMAIL]`      | user@example.com → [EMAIL]                |
-| Card Number  | `[CARD]`       | 1234-5678-9012-3456 → [CARD]              |
-| Phone Number | `[PHONE]`      | 010-1234-5678 → [PHONE]                   |
-| JWT Token    | `[JWT]`        | Bearer eyJ... → Bearer [JWT]              |
-| Password     | `[PASSWORD]`   | password: "secret" → password: [PASSWORD] |
-| API Key      | `[APIKEY]`     | 32+ character string → [APIKEY]           |
-
-### Sensitive Object Properties
-
-Object properties with the following keys are automatically replaced with `[REDACTED]`:
-
-- password, pwd, passwd
-- token, apiKey, api_key
-- accessToken, refreshToken, authToken
-- authorization
-- email, phone, phoneNumber, mobile
-- creditCard, cardNumber, card_number
-- ssn, socialSecurityNumber, residentNumber
-- secret, secretKey, privateKey
-- sessionId, session_id
-- cookie, cookies
-
-### Sensitive Key Management
-
-You can dynamically add or remove sensitive keys:
-
-```typescript
-import {
-  addSensitiveKey,
-  removeSensitiveKey,
-  getSensitiveKeys,
-  resetSensitiveKeys,
-} from '@cp949/web-logger';
-
-// Add key
-addSensitiveKey('customSecret');
-addSensitiveKey('apiSecret');
-
-// Remove key
-removeSensitiveKey('email'); // Disable email filtering
-
-// Check current key list
-console.log(getSensitiveKeys());
-// ['apiKey', 'api_key', 'authorization', 'cardNumber', ...]
-
-// Reset to default
-resetSensitiveKeys();
-```
-
-> Note: All WebLogger instances share the same sensitive key list. Keys are stored case-insensitively.
-
-## 🗂️ Built-in Objects Handling
-
-Web Logger properly handles JavaScript built-in objects like Map, Set, Date, TypedArray, and Buffer, ensuring sensitive data is masked even within these complex structures.
-
-### Map Objects
-
-Map keys and values are both sanitized. If a key matches a sensitive keyword, the key itself is replaced with `[REDACTED]`:
-
-```typescript
-import { logInfo } from '@cp949/web-logger';
-
-const userMap = new Map([
-  ['email', 'user@example.com'], // Key 'email' → '[REDACTED]'
-  ['password', 'secret123'], // Key 'password' → '[REDACTED]'
-  ['username', 'john'], // Normal key preserved
-  ['contact', 'user@example.com'], // Value masked: '[EMAIL]'
-]);
-
-logInfo('User data:', userMap);
-// Output: Map with keys '[REDACTED]' and sanitized values
-```
-
-**Important Notes:**
-
-- Map keys are checked against sensitive keywords (case-insensitive)
-- If a key is sensitive, it's replaced with `[REDACTED]` to prevent key collision
-- Map values are sanitized using the same rules as regular object properties
-
-### Set Objects
-
-Set elements are sanitized individually. **Note**: If multiple different values are masked to the same pattern (e.g., multiple emails → `[EMAIL]`), Set's uniqueness property will deduplicate them:
-
-```typescript
-import { logInfo } from '@cp949/web-logger';
-
-const emailSet = new Set(['user1@example.com', 'user2@example.com', 'admin@example.com']);
-
-logInfo('Email list:', emailSet);
-// Output: Set(['[EMAIL]']) - All emails masked to [EMAIL], Set deduplicates to single element
-```
-
-**Important Notes:**
-
-- Set elements are sanitized using pattern-based masking
-- After masking, if multiple elements become identical (e.g., all `[EMAIL]`), Set's uniqueness will reduce the size
-- This is expected behavior due to Set's nature - consider using an Array if you need to preserve the original count
-
-### Date Objects
-
-Date objects are converted to ISO strings and then scanned for sensitive patterns:
-
-```typescript
-import { logInfo } from '@cp949/web-logger';
-
-const eventDate = new Date('2024-12-01');
-const customDate = {
-  toISOString: () => 'meeting-with-user@example.com-2024',
-};
-
-logInfo('Event date:', eventDate);
-// Output: "2024-12-01T00:00:00.000Z" (or similar ISO format)
-
-logInfo('Custom date:', customDate);
-// Output: "meeting-with-[EMAIL]-2024" (email pattern detected in ISO string)
-```
-
-### TypedArray and Buffer
-
-Binary data types are masked to prevent accidental logging of sensitive binary content:
-
-```typescript
-import { logInfo } from '@cp949/web-logger';
-
-// TypedArray (Uint8Array, Int32Array, etc.)
-const buffer = new Uint8Array([1, 2, 3, 4, 5]);
-logInfo('Binary data:', buffer);
-// Output: "[BINARY_DATA]"
-
-// Node.js Buffer
-if (typeof Buffer !== 'undefined') {
-  const nodeBuffer = Buffer.from('sensitive data');
-  logInfo('Node buffer:', nodeBuffer);
-  // Output: "[BUFFER]"
-}
-```
-
-**Important Notes:**
-
-- TypedArray (Uint8Array, Int32Array, Float64Array, etc.) → `[BINARY_DATA]`
-- Node.js Buffer → `[BUFFER]` (checked before TypedArray to ensure correct detection)
-- DataView objects are preserved as-is (not masked)
-
-### Nested Built-in Objects
-
-Built-in objects can be nested within regular objects and arrays:
-
-```typescript
-import { logInfo } from '@cp949/web-logger';
-
-const complexData = {
-  date: new Date('2024-12-01'),
-  userMap: new Map([
-    ['email', 'user@example.com'],
-    ['password', 'secret'],
-  ]),
-  emailSet: new Set(['user1@example.com', 'user2@example.com']),
-  binaryData: new Uint8Array([1, 2, 3]),
-};
-
-logInfo('Complex data:', complexData);
-// All nested built-in objects are properly sanitized
-```
-
-## 📊 Performance
-
-### Benchmark Results
-
-| Task               | Before  | After | Improvement |
-| ------------------ | ------- | ----- | ----------- |
-| Regex matching     | 230ms   | 23ms  | 90% ⬆️      |
-| Bulk logs (10,000) | 1,200ms | 450ms | 62% ⬆️      |
-| Memory usage       | 15MB    | 10MB  | 33% ⬇️      |
-
-### Optimization Techniques
-
-- Regex pattern caching: Reuse of compiled regex patterns
-- String length limit: Limited to 5,000 characters to prevent ReDoS attacks
-- Regex execution time limit: 100ms timeout to ensure performance
-- Conditional execution: Log level check performed first to prevent unnecessary sanitize
-- Build-time optimization: Environment variables injected as build-time constants for Tree Shaking optimization
-
-### Bundle Size
-
-- ESM: ~12.8 KB (unminified, includes sourcemap)
-- CJS: ~13.1 KB (unminified, includes sourcemap)
-- Type definitions: ~3.5 KB
-
-### Tree Shaking
-
-This library supports Tree Shaking. Optimizes dead code elimination by injecting environment variables as constants at build time.
-
-Build-time constant injection:
-
-```typescript
-// Automatically injected in tsup.config.ts
-__DEV__: boolean; // Development mode flag
-__NODE_ENV__: string; // NODE_ENV value
-__INITIAL_LOG_LEVEL__: string; // Initial log level
-```
-
-> Note: Tree Shaking is performed by bundlers (Webpack, Vite, Rollup, etc.) based on build-time constants. For how to dynamically change log levels at runtime, refer to the "Configuration" section.
-
-## 🧪 Testing
+`pnpm dev` builds the two library packages first, then starts their watch tasks and the demo application.
+
+## Development commands
+
+| Command | Description |
+| --- | --- |
+| `pnpm build` | Build every workspace package through Turborepo |
+| `pnpm dev` | Build the libraries, then start persistent development tasks |
+| `pnpm test` | Run package test suites |
+| `pnpm typecheck` | Type-check every workspace package |
+| `pnpm lint` | Run package lint tasks |
+| `pnpm format:check` | Check repository formatting with Biome |
+| `pnpm size` | Build and report both library bundle sizes |
+| `pnpm size:ci` | Run the configured size-limit checks and print JSON |
+
+Run a task for one package with a pnpm filter:
 
 ```bash
-# Run tests
-npm test
-
-# Check coverage
-npm test -- --coverage
+pnpm --filter @cp949/web-logger test
+pnpm --filter @cp949/web-logger-react typecheck
 ```
 
-### Test Coverage
+## Repository layout
 
-- Statements: 85.26%
-- Branches: 82.3%
-- Functions: 90.36%
-- Lines: 86.18%
-- Test cases: 147 (including masking priority, built-in objects, console API, environment detection)
-
-## 📝 API Reference
-
-### WebLogger Class
-
-```typescript
-class WebLogger {
-  constructor(prefix?: string);
-
-  // Logging methods
-  debug(message?: unknown, ...params: unknown[]): void;
-  info(message?: unknown, ...params: unknown[]): void;
-  warn(message?: unknown, ...params: unknown[]): void;
-  error(message?: unknown, ...params: unknown[]): void;
-  log(...args: unknown[]): void;
-
-  // Group methods
-  group(title: string, data?: LogMetadata): void;
-  groupEnd(): void;
-
-  // Performance measurement
-  time(label: string): void;
-  timeEnd(label: string): void;
-
-  // Configuration
-  setLogLevel(level: LogLevel): void;
-  get currentLogLevel(): LogLevel;
-  get isEnabled(): boolean;
-
-  // Instance methods
-  withPrefix(prefix: string): WebLogger;
-}
+```text
+apps/
+  logger-demo/             Browser demo
+packages/
+  web-logger/              Core logger
+  web-logger-react/        React hook
 ```
 
-### Utility Functions
+Generated package output is written to each package's `dist/` directory.
 
-```typescript
-// Log level control
-function setLogLevel(level: LogLevel): void;
-function getLogLevel(): LogLevel;
-function isDebugEnabled(): boolean;
+## Security
 
-// Convenience logging functions
-function logDebug(message?: unknown, ...params: unknown[]): void;
-function logInfo(message?: unknown, ...params: unknown[]): void;
-function logWarn(message?: unknown, ...params: unknown[]): void;
-function logError(message?: unknown, ...params: unknown[]): void;
+Masking is a safeguard for accidental console output, not a reason to pass credentials or secrets to a
+logger. Keep sensitive values out of logs whenever possible and configure application-specific keys and
+patterns when the defaults are not enough.
 
-// Console API compatibility
-function convertToConsoleLogger(logger: WebLogger): Partial<Console>;
+## License
 
-// Sensitive key management
-function addSensitiveKey(key: string): void;
-function removeSensitiveKey(key: string): void;
-function getSensitiveKeys(): string[];
-function resetSensitiveKeys(): void;
-
-// Sensitive pattern management
-function setSensitivePatterns(patterns: SensitivePatternMap): void;
-function addSensitivePatterns(patterns: SensitivePatternMap): void;
-function getSensitivePatterns(): SensitivePatternMap;
-function resetSensitivePatterns(): void;
-function setSensitivePatternWarnings(suppress: boolean): void;
-```
-
-### Type Definitions
-
-```typescript
-export type LogLevel = 'debug' | 'info' | 'warn' | 'error' | 'none';
-
-export interface LogMetadata {
-  [key: string]: unknown;
-}
-
-export type LogValue =
-  | string
-  | number
-  | boolean
-  | null
-  | undefined
-  | Error
-  | LogMetadata
-  | LogValue[];
-```
-
-## 🌐 Browser Support
-
-| Browser | Version | Support |
-| ------- | ------- | ------- |
-| Chrome  | 90+     | ✅      |
-| Firefox | 88+     | ✅      |
-| Safari  | 14+     | ✅      |
-| Edge    | 90+     | ✅      |
-
-## 📄 License
-
-MIT License - Feel free to use and modify.
-
-## 🤝 Contributing
-
-Bug reports and feature suggestions are welcome!
-
-1. Fork the repository
-2. Create your feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
+The packages are published under the MIT license.

@@ -56,7 +56,6 @@ function applyRegexWithTimeout(text: string, timeoutMs: number = REGEX_TIMEOUT_M
           error,
         );
         handleError(regexError, `정규식 패턴 ${key} 오류`);
-        continue;
       }
     }
   } catch (error) {

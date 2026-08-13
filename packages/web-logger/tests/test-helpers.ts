@@ -20,7 +20,9 @@ export function createLocalStorageMock() {
       delete storage[key];
     }),
     clear: vi.fn(() => {
-      Object.keys(storage).forEach((key) => delete storage[key]);
+      Object.keys(storage).forEach((key) => {
+        delete storage[key];
+      });
     }),
   };
 }

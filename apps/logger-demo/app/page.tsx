@@ -1,7 +1,6 @@
 'use client';
 
 import { useState } from 'react';
-import { useWebLogger } from '@cp949/web-logger-react';
 import { logDebug, logInfo, logWarn, logError, setLogLevel, getLogLevel } from '@cp949/web-logger';
 import UserList from './components/UserList';
 import UserDetails from './components/UserDetails';
@@ -44,12 +43,14 @@ logError('Error message');`}
         </div>
         <div className="button-group">
           <button
+            type="button"
             className="button"
             onClick={() => logDebug('This is a debug message', { userId: 123 })}
           >
             Debug
           </button>
           <button
+            type="button"
             className="button"
             onClick={() =>
               logInfo('User logged in', {
@@ -61,12 +62,14 @@ logError('Error message');`}
             Info
           </button>
           <button
+            type="button"
             className="button"
             onClick={() => logWarn('Rate limit approaching', { remaining: 10 })}
           >
             Warn
           </button>
           <button
+            type="button"
             className="button"
             onClick={() => logError('Failed to fetch data', new Error('Network error'))}
           >
@@ -111,6 +114,7 @@ function MyComponent() {
         </div>
         <div className="button-group">
           <button
+            type="button"
             className="button"
             onClick={() =>
               logInfo('User registration', {
@@ -138,19 +142,19 @@ setLogLevel('debug'); // All logs will be shown`}
           </code>
         </div>
         <div className="button-group">
-          <button className="button" onClick={() => handleSetLogLevel('debug')}>
+          <button type="button" className="button" onClick={() => handleSetLogLevel('debug')}>
             Debug (All)
           </button>
-          <button className="button" onClick={() => handleSetLogLevel('info')}>
+          <button type="button" className="button" onClick={() => handleSetLogLevel('info')}>
             Info
           </button>
-          <button className="button" onClick={() => handleSetLogLevel('warn')}>
+          <button type="button" className="button" onClick={() => handleSetLogLevel('warn')}>
             Warn
           </button>
-          <button className="button" onClick={() => handleSetLogLevel('error')}>
+          <button type="button" className="button" onClick={() => handleSetLogLevel('error')}>
             Error
           </button>
-          <button className="button" onClick={() => handleSetLogLevel('none')}>
+          <button type="button" className="button" onClick={() => handleSetLogLevel('none')}>
             None
           </button>
         </div>

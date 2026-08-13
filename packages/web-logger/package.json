@@ -1,6 +1,6 @@
 {
   "name": "@cp949/web-logger",
-  "version": "1.0.5",
+  "version": "1.0.6",
   "description": "Web environment conditional logging utility with automatic sensitive data filtering and runtime control",
   "type": "module",
   "main": "./dist/index.cjs",
@@ -37,12 +37,13 @@
     "clean": "rm -rf dist"
   },
   "devDependencies": {
-    "@types/node": "^24.10.1",
-    "@vitest/coverage-v8": "^4.1.4",
-    "jsdom": "^27.3.0",
+    "@types/node": "^26.2.0",
+    "@vitest/coverage-v8": "^4.1.10",
+    "jsdom": "^30.0.1",
     "tsup": "^8.5.1",
-    "typescript": "^5.9.3",
-    "vitest": "^4.1.4"
+    "typescript": "^6.0.3",
+    "vite": "^8.2.1",
+    "vitest": "^4.1.10"
   },
   "publishConfig": {
     "access": "public"

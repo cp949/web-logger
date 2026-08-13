@@ -1,176 +1,107 @@
-# 배포 가이드 (Deployment Guide)
+# 배포 가이드
 
-## v1.0.0 첫 배포 절차
+이 저장소에서는 `@cp949/web-logger`와 `@cp949/web-logger-react`를 각각 npm에 배포합니다.
+현재 배포 후보 버전은 두 패키지 모두 `1.0.6`입니다.
 
-### 1. 사전 준비
+## 이번 릴리스
 
-#### 1.1 npmjs 로그인 확인
+이번 릴리스의 1차 목적은 개발 의존성에서 보고된 `pnpm audit` 취약점을 해소하는 것입니다.
+Vite 8, esbuild 0.28.2 및 관련 도구 업데이트가 포함되며, 라이브러리 공개 API 변경은 없습니다.
+
+## 배포 전 확인
+
+저장소 루트에서 다음 명령을 실행합니다.
 
 ```bash
-# npmjs에 로그인되어 있는지 확인
+pnpm install --frozen-lockfile
+pnpm audit
+pnpm lint
+pnpm format:check
+pnpm typecheck
+pnpm test
+pnpm build
+pnpm size:ci
+```
+
+확인할 항목:
+
+- `pnpm audit` 취약점 0건
+- 두 패키지 버전이 `1.0.6`
+- 테스트, 타입 검사, 린트, 포맷, 빌드, 번들 크기 검사 통과
+- Git 작업 트리에 의도하지 않은 파일이 없는지 확인
+- npm 계정이 `@cp949` 스코프에 두 패키지를 배포할 권한이 있는지 확인
+
+npm 로그인 상태는 다음 명령으로 확인할 수 있습니다.
+
+```bash
 pnpm whoami
-
-# 로그인되어 있지 않다면
-pnpm login
-# 또는
-npm login
 ```
 
-#### 1.2 @cp949 스코프 권한 확인
+## 패키지 내용 확인
 
-- npmjs에서 `@cp949` 스코프의 소유자인지 확인
-- 스코프가 없다면 npmjs에서 생성하거나 기존 스코프에 추가되어야 함
-- 스코프는 무료이며, `--access public` 플래그로 공개 패키지로 배포 가능
-
-#### 1.3 Git 상태 확인
+실제 배포 전에 tarball의 파일 목록과 package.json을 확인합니다.
 
 ```bash
-# 변경사항 확인
-git status
-
-# 변경사항이 있다면 커밋 및 푸시 (권장)
-git add .
-git commit -m "chore: prepare for v1.0.0 release"
-git push
+pnpm --dir packages/web-logger pack --json
+pnpm --dir packages/web-logger-react pack --json
 ```
 
-### 2. 배포 전 검증
+각 tarball에는 다음 파일만 포함되어야 합니다.
 
-#### 2.1 의존성 설치
+- `package.json`
+- `README.md`와 `README.ko.md`
+- `dist/index.js`와 소스맵
+- `dist/index.cjs`와 소스맵
+- `dist/index.d.ts`
+- `dist/index.d.cts`
 
-```bash
-pnpm install
-```
+생성된 `*.tgz`는 검사 후 커밋하지 않습니다.
 
-#### 2.2 타입 체크
+## 배포 순서
 
-```bash
-pnpm run typecheck
-```
-
-#### 2.3 린트 확인
-
-```bash
-pnpm run lint
-# 또는 자동 수정
-pnpm run lint:fix
-```
-
-#### 2.4 테스트 실행
+코어 패키지를 먼저 배포하고 npm에서 `1.0.6`이 조회되는지 확인한 다음 React 패키지를 배포합니다.
 
 ```bash
-pnpm run test
-```
+cd packages/web-logger
+pnpm publish --access public
 
-#### 2.5 빌드 확인
-
-```bash
-pnpm run build
-```
-
-빌드 후 `dist` 폴더에 다음 파일들이 생성되는지 확인:
-
-- `dist/index.js` (ESM)
-- `dist/index.cjs` (CJS)
-- `dist/index.d.ts` (TypeScript 타입 정의)
-
-### 3. 배포 실행
-
-#### 방법 1: 스크립트 사용 (권장)
-
-```bash
-chmod +x scripts/publish.sh
-./scripts/publish.sh
-```
-
-스크립트 실행 시:
-
-1. 의존성 설치
-2. 타입 체크
-3. 빌드
-4. 버전 확인 (이미 1.0.0이므로 "no" 선택)
-5. 배포 확인 (y 선택)
-
-#### 방법 2: 직접 배포
-
-```bash
-# 1. 빌드 및 타입 체크 (prepublishOnly 훅이 자동 실행됨)
-pnpm run publish
-
-# 또는 수동으로
-pnpm run build
-pnpm run typecheck
+cd ../web-logger-react
 pnpm publish --access public
 ```
 
-### 4. 배포 후 확인
+React 패키지의 peer dependency `@cp949/web-logger@^1.0.4`는 코어 `1.0.6`을 포함합니다.
 
-#### 4.1 npmjs에서 패키지 확인
-
-배포 후 몇 분 후에 다음 URL에서 확인:
-
-```
-https://www.npmjs.com/package/@cp949/web-logger
-```
-
-#### 4.2 설치 테스트
-
-다른 프로젝트에서 설치 테스트:
+## 배포 후 확인
 
 ```bash
-npm install @cp949/web-logger
-# 또는
-pnpm add @cp949/web-logger
+pnpm view @cp949/web-logger version
+pnpm view @cp949/web-logger-react version
 ```
 
-#### 4.3 Git 태그 생성 (권장)
+두 명령이 모두 `1.0.6`을 반환하는지 확인합니다. 별도의 빈 디렉터리에서 설치 테스트까지 하면
+패키지 메타데이터와 peer dependency 해석을 함께 확인할 수 있습니다.
 
 ```bash
-# 버전 태그 생성
-git tag v1.0.0
-
-# 태그 푸시
-git push origin v1.0.0
-# 또는 모든 태그 푸시
-git push --tags
+pnpm add @cp949/web-logger@1.0.6 @cp949/web-logger-react@1.0.6 react@19
 ```
 
-### 5. 문제 해결
-
-#### 5.1 "You cannot publish over the previously published versions" 오류
-
-- 이미 해당 버전이 배포된 경우
-- 해결: 버전을 올리거나 기존 버전을 unpublish (24시간 이내만 가능)
-
-#### 5.2 "You do not have permission to publish" 오류
-
-- 스코프 권한이 없는 경우
-- 해결: npmjs에서 스코프 소유자 확인 또는 `--access public` 플래그 사용
-
-#### 5.3 빌드 실패
-
-- `dist` 폴더가 없거나 파일이 없는 경우
-- 해결: `pnpm run build` 실행 후 재시도
-
-### 6. 체크리스트
-
-배포 전 최종 확인:
-
-- [ ] npmjs 로그인 완료
-- [ ] @cp949 스코프 권한 확인
-- [ ] 타입 체크 통과
-- [ ] 린트 통과
-- [ ] 테스트 통과
-- [ ] 빌드 성공 (dist 폴더 확인)
-- [ ] package.json 버전이 1.0.0
-- [ ] README.md 내용 확인
-- [ ] Git 커밋 완료 (선택사항)
-
-### 7. 빠른 배포 명령어
-
-모든 검증을 완료했다면:
+Git 태그와 원격 푸시는 npm 배포 결과를 확인한 후 진행합니다. 현재 저장소에는 두 패키지가 같은
+버전을 사용하므로 태그는 `v1.0.6` 하나를 사용합니다.
 
 ```bash
-# 한 줄로 배포
-pnpm run build && pnpm run typecheck && pnpm publish --access public
+git tag v1.0.6
+git push origin main
+git push origin v1.0.6
 ```
+
+## 실패 시
+
+- 같은 버전이 이미 존재하면 덮어쓸 수 없습니다. package.json과 CHANGELOG를 다음 패치 버전으로
+  올린 후 다시 검증합니다.
+- 코어 배포 후 React 배포만 실패했다면 코어를 다시 배포하지 않습니다. 원인을 수정하고 React
+  패키지만 새 버전으로 배포합니다.
+- npm에 게시된 버전은 일반적인 Git 롤백으로 제거되지 않습니다. 문제가 있는 버전은 npm에서
+  deprecate하고 수정 버전을 새로 배포하는 방식을 우선합니다.
+
+위험도: 높음
+롤백: npm에 게시한 동일 버전은 덮어쓸 수 없으며, 보통 deprecate 후 새 패치 버전 배포가 필요함

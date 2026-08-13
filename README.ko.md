@@ -1,713 +1,116 @@
-# @cp949/web-logger
+# web-logger
 
-[![npm version](https://img.shields.io/npm/v/@cp949/web-logger.svg)](https://www.npmjs.com/package/@cp949/web-logger)
-[![Bundle Size](<https://img.shields.io/badge/Bundle%20Size-3.16KB%20(brotli)-green>)](BUNDLE_SIZE.md)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![TypeScript](https://img.shields.io/badge/TypeScript-5.0%2B-blue)](https://www.typescriptlang.org/)
+브라우저용 로거와 React 훅을 함께 관리하는 TypeScript 모노레포입니다.
 
 **언어:** [English](README.md) | [한국어](README.ko.md)
 
-📦 **패키지:** [npm](https://www.npmjs.com/package/@cp949/web-logger)
+## 패키지
 
-프로덕션 환경에 최적화된 웹 로깅 라이브러리입니다. 개발 환경에서는 풍부한 디버깅 정보를 제공하고, 프로덕션에서는 자동으로 민감한 정보를 필터링하며 성능에 최적화됩니다.
+| 패키지 | 용도 |
+| --- | --- |
+| [`@cp949/web-logger`](packages/web-logger/README.ko.md) | 로그 레벨, Prefix, 구조화 데이터 출력, 민감 정보 마스킹 |
+| [`@cp949/web-logger-react`](packages/web-logger-react/README.ko.md) | 컴포넌트별 로거를 만드는 메모이제이션된 React 훅 |
 
-## ✨ 주요 특징
+두 패키지를 브라우저에서 직접 확인할 수 있는 Vite 애플리케이션
+[`logger-demo`](apps/logger-demo)도 포함되어 있습니다.
 
-### 🔐 보안 우선
+## 패키지 설치
 
-- 민감한 정보 자동 필터링: 이메일, 전화번호, 카드번호, JWT 토큰, 패스워드 등 자동 마스킹
-- 프로토타입 오염 방지: `__proto__`, `constructor` 등 위험한 키 필터링
-- ReDoS 공격 방지: 문자열 길이 제한 (5,000자) 및 정규식 실행 시간 제한 (100ms)
-- 순환 참조 안전 처리: 최대 깊이 10단계 제한
-
-### ⚡ 성능 최적화
-
-- **초경량**: 단 3.16KB (Brotli 압축), 7KB (Gzip)
-- Tree Shaking 지원: 빌드 타임 상수 주입으로 데드 코드 제거 가능
-- 정규식 캐싱: 컴파일된 정규식 재사용으로 성능 향상
-- 조건부 로깅: 로그 레벨 체크를 먼저 수행하여 불필요한 처리 방지
-- 정규식 타임아웃: ReDoS 공격 방지를 위한 실행 시간 제한
-- ESM/CJS 듀얼 패키지: 모든 환경 지원
-- SSR/CSR 호환: 서버 사이드 렌더링과 클라이언트 사이드 환경 모두에서 완벽 작동
-
-### 🎨 개발자 경험
-
-- 컬러풀한 콘솔 출력: 로그 레벨별 색상 구분
-- 타임스탬프 자동 추가: HH:MM:SS 형식
-- 구조화된 데이터 표시: `console.table`을 활용한 메타데이터 표시
-- 100% 타입 안전: TypeScript 완벽 지원, any 타입 없음
-
-### 🛠️ 유연한 설정
-
-- 다양한 로그 레벨: debug, info, warn, error, none
-- 런타임 레벨 제어: 프로덕션에서도 동적 변경 가능
-- 다중 설정 소스: 환경변수, 전역변수
-
-## 📦 설치
-
-[npm](https://www.npmjs.com/package/@cp949/web-logger)에서 설치:
-
-```bash
-npm install @cp949/web-logger
-```
-
-또는
-
-```bash
-yarn add @cp949/web-logger
-```
-
-또는
+일반 TypeScript 또는 JavaScript 프로젝트에서는 코어 패키지를 설치합니다.
 
 ```bash
 pnpm add @cp949/web-logger
 ```
 
-## 📖 간단한 사용법
+React 애플리케이션에서는 두 패키지가 모두 필요합니다.
 
-### 1. 기본 로깅
-
-```typescript
-import { logDebug, logInfo, logWarn, logError } from '@cp949/web-logger';
-
-logDebug('디버깅 정보');
-logInfo('일반 정보');
-logWarn('경고 메시지');
-logError('에러 발생!');
+```bash
+pnpm add @cp949/web-logger @cp949/web-logger-react
 ```
 
-### 2. 인스턴스 사용
+## 빠른 시작
 
 ```typescript
-import { WebLogger } from '@cp949/web-logger';
+import { logError, logInfo, setLogLevel } from '@cp949/web-logger';
 
-const logger = new WebLogger('[MyApp]');
-logger.debug('디버깅');
-logger.info('정보');
-logger.warn('경고');
-logger.error('에러');
+setLogLevel('info');
+
+logInfo('애플리케이션 시작');
+logError('요청 실패', { status: 500 });
 ```
 
-### 3. 로그 레벨 제어
-
-```typescript
-import { setLogLevel, getLogLevel } from '@cp949/web-logger';
-
-// 로그 레벨 변경 (즉시 반영)
-setLogLevel('warn'); // warn, error만 출력
-setLogLevel('debug'); // 모든 로그 출력
-
-// 현재 레벨 확인
-console.log(getLogLevel()); // 'debug'
-```
-
-### 4. 민감한 정보 자동 필터링
-
-기본적으로 마스킹 동작은 환경에 따라 다릅니다:
-
-- **개발 모드**: 마스킹이 기본적으로 **비활성화**됩니다 (디버깅 편의를 위해)
-- **프로덕션 모드**: 마스킹이 기본적으로 **활성화**됩니다 (보안을 위해)
-
-`enableMasking` 옵션을 사용하여 이 동작을 오버라이드할 수 있습니다:
-
-```typescript
-import { WebLogger } from '@cp949/web-logger';
-
-// 개발 모드: 기본적으로 마스킹 비활성화
-const devLogger = new WebLogger('[App]');
-devLogger.info({ email: 'user@example.com' }); // → email: 'user@example.com' (마스킹 안 됨)
-
-// 개발 모드에서 마스킹 활성화
-const secureDevLogger = new WebLogger({ enableMasking: true });
-secureDevLogger.info({ email: 'user@example.com' }); // → email: 'use***@example.com'
-
-// 프로덕션 모드에서 마스킹 비활성화
-const debugProdLogger = new WebLogger({ enableMasking: false });
-debugProdLogger.info({ email: 'user@example.com' }); // → email: 'user@example.com' (마스킹 안 됨)
-```
-
-Web Logger는 명확한 우선순위를 가진 두 가지 데이터 마스킹 방식을 제공합니다:
-
-#### 키 기반 마스킹 (높은 우선순위)
-
-객체 속성 키가 민감한 키워드와 일치하면 일부 문자만 표시하고 나머지를 별표로 마스킹합니다:
-
-```typescript
-// 민감한 키는 일부 문자만 표시하고 나머지를 마스킹합니다
-logDebug('User data:', {
-  password: 'mypassword123', // → password: 'my***'
-  email: 'user@example.com', // → email: 'use***@example.com'
-  apiKey: 'key123456789', // → apiKey: 'ke***'
-});
-```
-
-**민감한 키 목록:** `password`, `passwd`, `pass`, `secret`, `token`, `apiKey`, `api_key`, `auth`, `authorization`, `cookie`, `session`, `private`, `ssn`, `email`, `phone`, `tel`, `mobile`, `card`, `credit`, `cvv`, `cvc`
-
-#### 패턴 기반 마스킹 (낮은 우선순위)
-
-민감하지 않은 키의 경우, 값을 검사하여 패턴에 따라 마스킹합니다:
-
-```typescript
-// 일반 속성 값에서 패턴 감지
-logDebug('Contact info:', {
-  userEmail: 'user@example.com', // → userEmail: '[EMAIL]'
-  description: 'Call 010-1234-5678', // → description: 'Call [PHONE]'
-  payment: '1234-5678-9012-3456', // → payment: '[CARD]'
-});
-```
-
-**감지 패턴:** 이메일 주소 → `[EMAIL]`, 신용카드 → `[CARD]`, 전화번호 → `[PHONE]`, JWT 토큰 → `[JWT]`, API 키 → `[APIKEY]`, 비밀번호 → `[PASSWORD]`
-
-#### 우선순위 예시
-
-```typescript
-// 키 기반 마스킹이 우선 적용됩니다
-const data = {
-  email: 'user@example.com', // 키 매칭 → 'use***@example.com' ('[EMAIL]' 아님)
-  userInfo: 'user@example.com', // 키 미매칭 → '[EMAIL]'
-};
-```
-
-#### 상세 마스킹 동작
-
-1. **키 기반 마스킹 (최우선 체크)**: 속성 키가 민감한 키워드와 일치하면, 값이 부분 마스킹됩니다:
-   - Email: 앞 3자 + `***` + `@` + 도메인 (예: `use***@example.com`)
-   - Password: 앞 2자 + `***` (예: `my***`)
-   - 기타: 앞 2자 + `***` (예: `se***`)
-
-2. **패턴 기반 마스킹 (대체 방법)**: 키가 민감하지 않은 경우, 값에서 패턴을 검색합니다:
-   - 이메일 주소: `user@example.com` → `[EMAIL]`
-   - 신용카드: `1234-5678-9012-3456` → `[CARD]`
-   - 전화번호: `010-1234-5678` → `[PHONE]`
-   - JWT 토큰: `Bearer eyJ...` → `Bearer [JWT]`
-   - API 키: 32자 이상 문자열 → `[APIKEY]`
-   - 비밀번호: `password: "..."` 포함 문자열 → `[PASSWORD]`
-
-3. **내장 객체**: Map, Set, Date, TypedArray, Buffer는 특별히 처리됩니다 ([내장 객체 처리](#-내장-객체-처리) 섹션 참조).
-
-4. **중첩 객체**: 순환 참조를 방지하기 위해 최대 10 레벨까지 재귀적으로 sanitize됩니다.
-
-### 5. Console API 호환성
-
-```typescript
-import { WebLogger, convertToConsoleLogger } from '@cp949/web-logger';
-
-const webLogger = new WebLogger('[App]');
-const consoleCompatible = convertToConsoleLogger(webLogger);
-
-// console을 완전히 대체 가능 (console API와 동일한 시그니처)
-consoleCompatible.debug('message', obj1, obj2);
-consoleCompatible.info('info', data);
-consoleCompatible.warn('warning');
-consoleCompatible.error('error', error);
-consoleCompatible.log('log message');
-
-// 기존 console 사용 코드를 쉽게 마이그레이션
-// const console = convertToConsoleLogger(webLogger);
-```
-
-### 6. 고급 기능
-
-```typescript
-import { WebLogger } from '@cp949/web-logger';
-
-const logger = new WebLogger('[MyApp]');
-
-// 그룹화된 로깅
-logger.group('사용자 정보', userData);
-logger.debug('상세 정보...');
-logger.groupEnd();
-
-// 성능 측정
-logger.time('API 호출');
-// ... 비동기 작업 ...
-logger.timeEnd('API 호출'); // API 호출: 123ms
-
-// 로그 레벨 동적 제어 (즉시 반영, 새로고침 불필요)
-logger.setLogLevel('warn'); // warn, error만 출력
-logger.setLogLevel('debug'); // 모든 로그 출력
-
-// 로그 레벨 확인
-console.log(logger.currentLogLevel); // 'debug'
-console.log(logger.isEnabled); // true
-
-// 여러 파라미터 지원 (console API와 동일)
-logger.debug('User data:', userData, requestInfo);
-logger.error('Failed to fetch:', error, { endpoint, status });
-```
-
-### 7. 컴포넌트별 Prefix (React)
+React 컴포넌트에서는 다음과 같이 사용합니다.
 
 ```tsx
-import { useEffect, useMemo } from 'react';
-import { createPrefixedLogger } from '@cp949/web-logger';
+import { useEffect } from 'react';
+import { useWebLogger } from '@cp949/web-logger-react';
 
-function UserList() {
-  const logger = useMemo(() => createPrefixedLogger('[UserList]'), []);
+function Checkout() {
+  const logger = useWebLogger('[Checkout]');
 
   useEffect(() => {
-    logger.info('hello users'); // [UserList] hello users
+    logger.info('마운트 완료');
   }, [logger]);
 
-  return <div>UserList</div>;
+  return null;
 }
 ```
 
-## 🌍 SSR 지원
+설정 방법과 전체 공개 API는 각 패키지 README에서 확인할 수 있습니다.
 
-이 라이브러리는 Next.js, Nuxt 등의 서버 사이드 렌더링(SSR) 환경을 완벽하게 지원합니다.
+## 저장소 설정
 
-### 작동 원리
+필수 환경:
 
-환경을 자동으로 감지하여 적절한 전역 객체를 사용합니다:
-
-- **브라우저(CSR)**: `window.__WEB_LOGGER_LOG_LEVEL__` 사용
-- **서버(SSR)**: `globalThis.__WEB_LOGGER_LOG_LEVEL__` 사용
-
-### SSR 주요 기능
-
-1. **런타임 에러 없음**: Node.js 환경에서 에러 없이 작동
-2. **로그 레벨 공유**: globalThis를 통해 모든 인스턴스가 로그 레벨 공유
-3. **동일한 보안 정책**: 서버와 클라이언트에서 민감 데이터 마스킹 동일 작동
-4. **설정 불필요**: SSR 프레임워크를 위한 별도 설정 불필요
-
-### SSR 프레임워크에서 사용
-
-```typescript
-// 별도 설정 없이 서버와 클라이언트 모두에서 작동
-import { logDebug, logInfo, logWarn, logError } from '@cp949/web-logger';
-
-// Next.js 페이지나 API 라우트
-export default function Page() {
-  logDebug('서버 사이드 디버그 메시지'); // 서버에서 작동
-  logInfo('페이지 렌더링됨'); // 서버와 클라이언트 모두에서 작동
-
-  return <div>Hello World</div>;
-}
-
-// API 라우트
-export async function GET() {
-  logDebug('API 라우트 호출됨'); // Node.js에서 작동
-  return Response.json({ message: 'Hello' });
-}
-```
-
-### 동적 임포트 (선택사항)
-
-로거 로딩 시점을 완전히 제어하려면:
-
-```typescript
-// 클라이언트 전용 로깅
-if (typeof window !== 'undefined') {
-  const { logDebug } = await import('@cp949/web-logger');
-  logDebug('클라이언트 전용 메시지');
-}
-```
-
-## 🔧 설정
-
-### 로그 레벨 설정 우선순위
-
-로그 레벨은 다음 우선순위로 결정됩니다:
-
-1. 런타임 전역 변수 (최우선, 즉시 반영)
-
-```javascript
-// 브라우저 환경
-window.__WEB_LOGGER_LOG_LEVEL__ = 'debug';
-
-// Node.js/SSR 환경
-globalThis.__WEB_LOGGER_LOG_LEVEL__ = 'debug';
-```
-
-모든 WebLogger 인스턴스에 즉시 반영됩니다.
-
-2. 빌드 타임 상수 (선택적, 빌드 시 주입)
-
-```typescript
-// 번들러 설정 (tsup, webpack, vite 등)
-define: {
-  __INITIAL_LOG_LEVEL__: JSON.stringify('warn');
-}
-```
-
-빌드 시점에 초기 로그 레벨을 설정하는데 사용됩니다.
-
-3. 런타임 환경 변수
+- Node.js `^20.19.0 || >=22.12.0`
+- pnpm `10.25.0`
 
 ```bash
-WEB_LOGGER_LOG_LEVEL=debug npm run dev
+pnpm install
+pnpm dev
 ```
 
-전역 변수와 빌드 타임 상수가 설정되지 않은 경우 사용됩니다.
-
-4. 개발 모드 감지
-
-- NODE_ENV를 통해 자동으로 개발 환경을 감지합니다
-
-5. 기본값
-
-- 개발 환경: `debug` (모든 로그 출력)
-- 프로덕션 환경: `warn` (warn, error만 출력)
-
-> 참고: `setLogLevel()` 메서드를 사용하면 모든 WebLogger 인스턴스에 즉시 반영되며, 전역 변수에도 저장됩니다.
-
-### 로그 레벨 설명
-
-| 레벨    | 설명                  | 프로덕션 기본값 |
-| ------- | --------------------- | --------------- |
-| `debug` | 모든 로그 출력        | ❌              |
-| `info`  | 정보, 경고, 에러 출력 | ❌              |
-| `warn`  | 경고, 에러만 출력     | ✅              |
-| `error` | 에러만 출력           | ✅              |
-| `none`  | 모든 로그 비활성화    | ❌              |
-
-## 🛡️ 보안 기능
-
-### 자동 필터링되는 정보
-
-| 데이터 유형 | 마스킹 결과  | 예시                                      |
-| ----------- | ------------ | ----------------------------------------- |
-| 이메일      | `[EMAIL]`    | user@example.com → [EMAIL]                |
-| 카드번호    | `[CARD]`     | 1234-5678-9012-3456 → [CARD]              |
-| 전화번호    | `[PHONE]`    | 010-1234-5678 → [PHONE]                   |
-| JWT 토큰    | `[JWT]`      | Bearer eyJ... → Bearer [JWT]              |
-| 패스워드    | `[PASSWORD]` | password: "secret" → password: [PASSWORD] |
-| API 키      | `[APIKEY]`   | 32자 이상 문자열 → [APIKEY]               |
-
-### 민감한 객체 속성
-
-다음 키를 가진 객체 속성은 자동으로 부분 마스킹됩니다:
-
-- password, pwd, passwd
-- token, apiKey, api_key
-- accessToken, refreshToken, authToken
-- authorization
-- email, phone, phoneNumber, mobile
-- creditCard, cardNumber, card_number
-- ssn, socialSecurityNumber, residentNumber
-- secret, secretKey, privateKey
-- sessionId, session_id
-- cookie, cookies
-
-### 민감한 키 관리
-
-민감한 키 목록을 동적으로 추가하거나 제거할 수 있습니다:
-
-```typescript
-import {
-  addSensitiveKey,
-  removeSensitiveKey,
-  getSensitiveKeys,
-  resetSensitiveKeys,
-} from '@cp949/web-logger';
-
-// 키 추가
-addSensitiveKey('customSecret');
-addSensitiveKey('apiSecret');
-
-// 키 제거
-removeSensitiveKey('email'); // email 필터링 비활성화
-
-// 현재 키 목록 확인
-console.log(getSensitiveKeys());
-// ['apiKey', 'api_key', 'authorization', 'cardNumber', ...]
-
-// 기본값으로 초기화
-resetSensitiveKeys();
-```
-
-> 참고: 모든 WebLogger 인스턴스가 동일한 민감한 키 목록을 공유합니다. 키는 대소문자 구분 없이 저장됩니다.
-
-## 📊 성능
-
-### 벤치마크 결과
-
-| 작업                 | 개선 전 | 개선 후 | 향상률 |
-| -------------------- | ------- | ------- | ------ |
-| 정규식 매칭          | 230ms   | 23ms    | 90% ⬆️ |
-| 대량 로그 (10,000개) | 1,200ms | 450ms   | 62% ⬆️ |
-| 메모리 사용량        | 15MB    | 10MB    | 33% ⬇️ |
-
-### 최적화 기법
-
-- 정규식 패턴 캐싱: 컴파일된 정규식 재사용
-- 문자열 길이 제한: 5,000자로 제한하여 ReDoS 공격 방지
-- 정규식 실행 시간 제한: 100ms 타임아웃으로 성능 보장
-- 조건부 실행: 로그 레벨 체크를 먼저 수행하여 불필요한 sanitize 방지
-- 빌드 타임 최적화: 환경 변수를 빌드 타임 상수로 주입하여 Tree Shaking 최적화
-
-### 번들 크기
-
-- ESM: ~12.8 KB (unminified, sourcemap 포함)
-- CJS: ~13.1 KB (unminified, sourcemap 포함)
-- 타입 정의: ~3.5 KB
-
-### Tree Shaking
-
-이 라이브러리는 Tree Shaking을 지원합니다. 빌드 타임에 환경 변수를 상수로 주입하여 데드 코드 제거를 최적화합니다.
-
-빌드 타임 상수 주입:
-
-```typescript
-// tsup.config.ts에서 자동으로 주입됨
-__DEV__: boolean; // 개발 모드 여부
-__NODE_ENV__: string; // NODE_ENV 값
-__INITIAL_LOG_LEVEL__: string; // 초기 로그 레벨
-```
-
-> 참고: Tree Shaking은 번들러(Webpack, Vite, Rollup 등)가 빌드 타임 상수를 기반으로 데드 코드를 제거합니다. 런타임에서 로그 레벨을 동적으로 변경하는 방법은 "설정" 섹션을 참조하세요.
-
-## 🗂️ 내장 객체 처리
-
-Web Logger는 Map, Set, Date, TypedArray, Buffer와 같은 JavaScript 내장 객체를 적절히 처리하여 복잡한 구조 내에서도 민감한 데이터가 마스킹되도록 보장합니다.
-
-### Map 객체
-
-Map의 키와 값이 모두 sanitize됩니다. 키가 민감한 키워드와 일치하면 키 자체가 부분 마스킹됩니다:
-
-```typescript
-import { logInfo } from '@cp949/web-logger';
-
-const userMap = new Map([
-  ['email', 'user@example.com'], // 키 'email' → 'use***@example.com'
-  ['password', 'secret123'], // 키 'password' → 'se***'
-  ['username', 'john'], // 일반 키는 보존
-  ['contact', 'user@example.com'], // 값 마스킹: '[EMAIL]'
-]);
-
-logInfo('사용자 데이터:', userMap);
-// 출력: 키가 부분 마스킹되고 값이 sanitize된 Map
-```
-
-**중요 사항:**
-
-- Map 키는 민감한 키워드와 비교됩니다 (대소문자 구분 없음)
-- 민감한 키는 키 충돌을 방지하기 위해 부분 마스킹됩니다
-- Map 값은 일반 객체 속성과 동일한 규칙으로 sanitize됩니다
-
-### Set 객체
-
-Set 요소는 개별적으로 sanitize됩니다. **참고**: 여러 다른 값이 동일한 패턴으로 마스킹되면 (예: 여러 이메일 → `[EMAIL]`), Set의 고유성 특성에 따라 중복 제거됩니다:
-
-```typescript
-import { logInfo } from '@cp949/web-logger';
-
-const emailSet = new Set(['user1@example.com', 'user2@example.com', 'admin@example.com']);
-
-logInfo('이메일 목록:', emailSet);
-// 출력: Set(['[EMAIL]']) - 모든 이메일이 [EMAIL]로 마스킹되어 하나의 요소로 중복 제거됨
-```
-
-**중요 사항:**
-
-- Set 요소는 패턴 기반 마스킹을 사용하여 sanitize됩니다
-- 마스킹 후 여러 요소가 동일해지면 (예: 모두 `[EMAIL]`), Set의 고유성으로 인해 크기가 줄어듭니다
-- 이는 Set의 특성상 예상되는 동작입니다 - 원래 개수를 유지해야 한다면 Array 사용을 고려하세요
-
-### Date 객체
-
-Date 객체는 ISO 문자열로 변환된 후 민감한 패턴을 검사합니다:
-
-```typescript
-import { logInfo } from '@cp949/web-logger';
-
-const eventDate = new Date('2024-12-01');
-const customDate = {
-  toISOString: () => 'meeting-with-user@example.com-2024',
-};
-
-logInfo('이벤트 날짜:', eventDate);
-// 출력: "2024-12-01T00:00:00.000Z" (또는 유사한 ISO 형식)
-
-logInfo('커스텀 날짜:', customDate);
-// 출력: "meeting-with-[EMAIL]-2024" (ISO 문자열에서 이메일 패턴 감지)
-```
-
-### TypedArray와 Buffer
-
-바이너리 데이터 타입은 민감한 바이너리 내용의 의도치 않은 로깅을 방지하기 위해 마스킹됩니다:
-
-```typescript
-import { logInfo } from '@cp949/web-logger';
-
-// TypedArray (Uint8Array, Int32Array 등)
-const buffer = new Uint8Array([1, 2, 3, 4, 5]);
-logInfo('바이너리 데이터:', buffer);
-// 출력: "[BINARY_DATA]"
-
-// Node.js Buffer
-if (typeof Buffer !== 'undefined') {
-  const nodeBuffer = Buffer.from('sensitive data');
-  logInfo('Node 버퍼:', nodeBuffer);
-  // 출력: "[BUFFER]"
-}
-```
-
-**중요 사항:**
-
-- TypedArray (Uint8Array, Int32Array, Float64Array 등) → `[BINARY_DATA]`
-- Node.js Buffer → `[BUFFER]` (올바른 감지를 위해 TypedArray보다 먼저 체크)
-- DataView 객체는 그대로 보존됩니다 (마스킹하지 않음)
-
-### 중첩된 내장 객체
-
-내장 객체는 일반 객체와 배열 내에 중첩될 수 있습니다:
-
-```typescript
-import { logInfo } from '@cp949/web-logger';
-
-const complexData = {
-  users: new Map([
-    ['admin', { email: 'admin@example.com', role: 'admin' }],
-    ['user1', { email: 'user1@example.com', role: 'user' }],
-  ]),
-  emails: new Set(['user@example.com', 'admin@example.com']),
-  lastUpdated: new Date(),
-  metadata: {
-    binaryData: new Uint8Array([1, 2, 3]),
-  },
-};
-
-logInfo('복잡한 데이터:', complexData);
-// 모든 레벨에서 적절한 마스킹이 적용됨
-```
-
-## 🧪 테스트
+`pnpm dev`는 두 라이브러리 패키지를 먼저 빌드한 뒤 패키지별 감시 작업과 데모
+애플리케이션을 실행합니다.
+
+## 개발 명령
+
+| 명령 | 설명 |
+| --- | --- |
+| `pnpm build` | Turborepo를 통해 모든 워크스페이스 패키지 빌드 |
+| `pnpm dev` | 라이브러리 빌드 후 개발용 상시 작업 실행 |
+| `pnpm test` | 패키지별 테스트 실행 |
+| `pnpm typecheck` | 모든 워크스페이스 패키지 타입 검사 |
+| `pnpm lint` | 패키지별 린트 작업 실행 |
+| `pnpm format:check` | Biome으로 저장소 포맷 검사 |
+| `pnpm size` | 두 라이브러리를 빌드하고 번들 크기 출력 |
+| `pnpm size:ci` | 설정된 size-limit 검사를 실행하고 JSON 출력 |
+
+특정 패키지만 검사하려면 pnpm 필터를 사용합니다.
 
 ```bash
-# 테스트 실행
-npm test
-
-# 커버리지 확인
-npm test -- --coverage
+pnpm --filter @cp949/web-logger test
+pnpm --filter @cp949/web-logger-react typecheck
 ```
 
-### 테스트 커버리지
+## 저장소 구조
 
-- Statements: 85.26%
-- Branches: 82.3%
-- Functions: 90.36%
-- Lines: 86.18%
-- 테스트 케이스: 147개 (마스킹 우선순위, 내장 객체, console API, 환경 감지 포함)
-
-## 📝 API 레퍼런스
-
-### WebLogger 클래스
-
-```typescript
-class WebLogger {
-  constructor(prefix?: string);
-
-  // 로깅 메서드
-  debug(message?: unknown, ...params: unknown[]): void;
-  info(message?: unknown, ...params: unknown[]): void;
-  warn(message?: unknown, ...params: unknown[]): void;
-  error(message?: unknown, ...params: unknown[]): void;
-  log(...args: unknown[]): void;
-
-  // 그룹 메서드
-  group(title: string, data?: LogMetadata): void;
-  groupEnd(): void;
-
-  // 성능 측정
-  time(label: string): void;
-  timeEnd(label: string): void;
-
-  // 설정
-  setLogLevel(level: LogLevel): void;
-  get currentLogLevel(): LogLevel;
-  get isEnabled(): boolean;
-}
+```text
+apps/
+  logger-demo/             브라우저 데모
+packages/
+  web-logger/              코어 로거
+  web-logger-react/        React 훅
 ```
 
-### 유틸리티 함수
+패키지별 빌드 결과는 각 패키지의 `dist/` 디렉터리에 생성됩니다.
 
-```typescript
-// 로그 레벨 제어
-function setLogLevel(level: LogLevel): void;
-function getLogLevel(): LogLevel;
-function isDebugEnabled(): boolean;
+## 보안
 
-// 간편 로깅 함수
-function logDebug(message?: unknown, ...params: unknown[]): void;
-function logInfo(message?: unknown, ...params: unknown[]): void;
-function logWarn(message?: unknown, ...params: unknown[]): void;
-function logError(message?: unknown, ...params: unknown[]): void;
+마스킹은 실수로 콘솔에 출력된 민감 정보를 줄이기 위한 보조 수단입니다. 자격증명이나 비밀값을
+의도적으로 로거에 전달하지 말고, 기본 규칙으로 부족한 값은 애플리케이션 전용 키와 패턴으로
+추가 설정하십시오.
 
-// Console API 호환성
-function convertToConsoleLogger(logger: WebLogger): Partial<Console>;
+## 라이선스
 
-// 민감한 키 관리
-function addSensitiveKey(key: string): void;
-function removeSensitiveKey(key: string): void;
-function getSensitiveKeys(): string[];
-function resetSensitiveKeys(): void;
-```
-
-### 타입 정의
-
-```typescript
-export type LogLevel = 'debug' | 'info' | 'warn' | 'error' | 'none';
-
-export interface LogMetadata {
-  [key: string]: unknown;
-}
-
-export type LogValue =
-  | string
-  | number
-  | boolean
-  | null
-  | undefined
-  | Error
-  | LogMetadata
-  | LogValue[];
-```
-
-## 🌐 브라우저 지원
-
-| 브라우저 | 버전 | 지원 |
-| -------- | ---- | ---- |
-| Chrome   | 90+  | ✅   |
-| Firefox  | 88+  | ✅   |
-| Safari   | 14+  | ✅   |
-| Edge     | 90+  | ✅   |
-
-## 📄 라이선스
-
-MIT License - 자유롭게 사용하고 수정할 수 있습니다.
-
-## 🤝 기여하기
-
-버그 리포트와 기능 제안은 환영합니다!
-
-1. Fork the repository
-2. Create your feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
-
-## 🏷️ 버전 히스토리
-
-### v1.0.1 (2024-12-01)
-
-- Next.js 및 기타 프레임워크를 위한 완전한 SSR/CSR 호환성 추가
-- 서버 환경에서는 globalThis, 브라우저에서는 window 사용
-- Node.js 환경에서 런타임 에러 없음
-- globalThis를 통한 모든 인스턴스 간 로그 레벨 공유
-- 전역 변수를 위한 향상된 타입 선언
-- SSR 전용 테스트 케이스 추가
-
-### v1.0.0 (2024-12-01)
-
-- 초기 릴리즈
-- 완전한 TypeScript 지원 (any 타입 0개)
-- 민감한 정보 자동 필터링
-- 정규식 캐싱 및 타임아웃으로 성능 최적화
-- 프로토타입 오염 방지
-- ReDoS 공격 방지 (문자열 길이 제한 5,000자, 정규식 타임아웃 100ms)
-- ESM/CJS 듀얼 패키지 지원
-- 빌드 타임 상수 주입으로 Tree Shaking 최적화
-- 로그 레벨 즉시 반영 (새로고침 불필요)
-- 34개 테스트 케이스 통과
+각 패키지는 MIT 라이선스로 배포됩니다.
