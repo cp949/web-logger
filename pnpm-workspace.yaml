@@ -1,3 +1,19 @@
 packages:
   - "apps/*"
   - "packages/*"
+
+# package.json의 "pnpm" 필드는 pnpm 11부터 읽히지 않아 이곳으로 이전
+overrides:
+  vite: "^8.3.8"
+  rollup: "^4.59.0"
+  esbuild: "0.28.2"
+  source-map-js: ">=1.2.2"
+  "picomatch@>=4 <4.0.4": "4.0.4"
+
+allowBuilds:
+  esbuild: true
+
+# 발행 24시간 미만 버전은 기본 정책으로 거부되므로 jsdom 31.0.1만 예외 처리 (2026-11-13 발행)
+# 정책 기준 시간이 지나면 이 항목은 삭제해도 된다
+minimumReleaseAgeExclude:
+  - jsdom@31.0.1
