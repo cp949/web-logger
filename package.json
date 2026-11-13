@@ -7,6 +7,7 @@
     "lint": "turbo run lint",
     "typecheck": "turbo run typecheck",
     "test": "turbo run test",
+    "test:scripts": "node --test tests/scripts/*.test.mjs",
     "format": "biome format --write .",
     "format:check": "biome format .",
     "check": "biome check --write .",
@@ -15,7 +16,10 @@
     "size:react": "pnpm --filter @cp949/web-logger-react run size",
     "size:why": "size-limit --why",
     "size:ci": "size-limit --json",
-    "demo": "pnpm ts-node packages/web-logger/scripts/demo.ts"
+    "demo": "pnpm ts-node packages/web-logger/scripts/demo.ts",
+    "verify:ci": "pnpm audit && pnpm lint && pnpm format:check && pnpm typecheck && pnpm test && pnpm build && pnpm size:ci",
+    "verify:release": "node ./scripts/verify-release.mjs",
+    "publish:npm": "pnpm verify:release && node ./scripts/publish-npm.mjs"
   },
   "devDependencies": {
     "@biomejs/biome": "2.6.7",
