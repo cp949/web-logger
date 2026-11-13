@@ -18,18 +18,18 @@
     "demo": "pnpm ts-node packages/web-logger/scripts/demo.ts"
   },
   "devDependencies": {
-    "@biomejs/biome": "2.5.8",
+    "@biomejs/biome": "2.6.7",
     "@size-limit/file": "^13.0.3",
     "@size-limit/preset-small-lib": "^13.0.3",
-    "@testing-library/dom": "^10.4.1",
-    "rollup-plugin-visualizer": "^7.0.1",
+    "@testing-library/dom": "^10.4.2",
+    "rollup-plugin-visualizer": "^7.1.3",
     "size-limit": "^13.0.3",
-    "turbo": "^2.10.9",
+    "turbo": "^2.11.11",
     "typescript": "^6.0.3"
   },
   "pnpm": {
     "overrides": {
-      "vite": "^8.2.1",
+      "vite": "^8.3.8",
       "rollup": "^4.59.0",
       "esbuild": "0.28.2",
       "picomatch@>=4 <4.0.4": "4.0.4"
