@@ -20,10 +20,10 @@
     "README.md"
   ],
   "scripts": {
-    "build": "tsup",
-    "build:analyze": "tsup && pnpm run bundle-size",
+    "build": "tsdown",
+    "build:analyze": "tsdown && pnpm run bundle-size",
     "size": "pnpm run build:analyze",
-    "dev": "tsup --watch",
+    "dev": "tsdown --watch",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
@@ -40,7 +40,7 @@
     "@types/node": "^26.6.6",
     "@vitest/coverage-v8": "^5.1.0",
     "jsdom": "^31.0.1",
-    "tsup": "^8.5.1",
+    "tsdown": "^0.23.7",
     "typescript": "^6.0.3",
     "vite": "^8.3.8",
     "vitest": "^5.1.0"

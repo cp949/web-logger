@@ -1,5 +1,5 @@
 /**
- * 빌드 타임 상수 타입 선언 (tsup define)
+ * 빌드 타임 상수 타입 선언 (tsdown define)
  */
 import type { LogLevel } from './WebLogger';
 

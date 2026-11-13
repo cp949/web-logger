@@ -1,25 +1,19 @@
-import { defineConfig } from 'tsup';
+import { defineConfig } from 'tsdown';
 
 export default defineConfig((options) => ({
   entry: ['src/index.ts'],
   format: ['esm', 'cjs'],
-  dts: {
-    compilerOptions: {
-      // tsup DTS 번들링이 TS 6에서 baseUrl을 내부 주입한다.
-      ignoreDeprecations: '6.0',
-    },
-  },
-  splitting: false,
+  // package.json의 exports(index.js / index.cjs)와 파일명을 맞춘다
+  fixedExtension: false,
+  dts: true,
   sourcemap: true,
   clean: !options.watch,
-  treeshake: {
-    preset: 'smallest',
-  },
   minify: false,
   target: 'es2020',
   outDir: 'dist',
   platform: 'browser',
   external: ['react', 'react-dom', '@cp949/web-logger'],
-  bundle: true,
   tsconfig: './tsconfig.json',
+  // 번들 JS에서 주석 제거 (tsup 산출물과 동일하게 유지, .d.ts의 JSDoc은 유지됨)
+  outputOptions: { comments: false },
 }));

@@ -34,14 +34,14 @@
     "jsdom": "^31.0.1",
     "react": "^19.3.1",
     "react-dom": "^19.3.1",
-    "tsup": "^8.5.1",
+    "tsdown": "^0.23.7",
     "typescript": "^6.0.3",
     "vite": "^8.3.8",
     "vitest": "^5.1.0"
   },
   "scripts": {
-    "build": "tsup",
-    "dev": "tsup --watch",
+    "build": "tsdown",
+    "dev": "tsdown --watch",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
@@ -51,7 +51,7 @@
     "check": "biome check --write .",
     "clean": "rm -rf dist",
     "bundle-size": "node -e \"const fs=require('fs');const esm=fs.statSync('dist/index.js').size;const cjs=fs.statSync('dist/index.cjs').size;console.log('ESM:',(esm/1024).toFixed(2),'KB');console.log('CJS:',(cjs/1024).toFixed(2),'KB');console.log('Total:',((esm+cjs)/1024).toFixed(2),'KB')\"",
-    "build:analyze": "tsup && pnpm run bundle-size",
+    "build:analyze": "tsdown && pnpm run bundle-size",
     "size": "pnpm run build:analyze"
   },
   "publishConfig": {

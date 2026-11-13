@@ -1,4 +1,4 @@
-import { defineConfig } from 'tsup';
+import { defineConfig } from 'tsdown';
 
 // 환경 변수에서 빌드 타임 상수 추출
 const NODE_ENV = process.env.NODE_ENV || 'production';
@@ -8,29 +8,18 @@ const isDev = NODE_ENV === 'development';
 export default defineConfig((options) => ({
   entry: ['src/index.ts'],
   format: ['esm', 'cjs'],
-  dts: {
-    compilerOptions: {
-      // tsup DTS 번들링이 TS 6에서 baseUrl을 내부 주입한다.
-      ignoreDeprecations: '6.0',
-    },
-  },
-  splitting: false,
+  // package.json의 exports(index.js / index.cjs)와 파일명을 맞춘다
+  fixedExtension: false,
+  dts: true,
   sourcemap: true, // 디버깅을 위한 소스맵 생성
   clean: !options.watch,
-  treeshake: {
-    preset: 'smallest', // 가장 공격적인 Tree Shaking
-  },
   minify: false, // 사용자가 직접 minify할 수 있도록
   target: 'es2020',
   outDir: 'dist',
   platform: 'browser',
-  // 브라우저 환경 최적화
-  external: [],
-  noExternal: [],
-  // 번들 사이즈 최적화
-  bundle: true,
-  // 타입 생성 옵션
   tsconfig: './tsconfig.json',
+  // 번들 JS에서 주석 제거 (tsup 산출물과 동일하게 유지, .d.ts의 JSDoc은 유지됨)
+  outputOptions: { comments: false },
   // 빌드 타임 상수 주입 (Tree Shaking을 위한 데드 코드 제거)
   define: {
     __DEV__: JSON.stringify(isDev),
@@ -39,9 +28,5 @@ export default defineConfig((options) => ({
     // process.env 접근을 빌드 타임 상수로 대체
     'process.env.NODE_ENV': JSON.stringify(NODE_ENV),
     'process.env.WEB_LOGGER_LOG_LEVEL': JSON.stringify(INITIAL_LOG_LEVEL),
-  },
-  // 최적화 옵션
-  esbuildOptions(options) {
-    options.legalComments = 'none'; // 라이선스 주석만 유지
   },
 }));

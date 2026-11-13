@@ -574,7 +574,7 @@ resetSensitiveKeys();
 빌드 타임 상수 주입:
 
 ```typescript
-// tsup.config.ts에서 자동으로 주입됨
+// tsdown.config.ts에서 자동으로 주입됨
 __DEV__: boolean; // 개발 모드 여부
 __NODE_ENV__: string; // NODE_ENV 값
 __INITIAL_LOG_LEVEL__: string; // 초기 로그 레벨
